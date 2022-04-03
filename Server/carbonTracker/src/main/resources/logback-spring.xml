@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+    <timestamp key="TIMESTAMP" datePattern="yyyyMMdd"/>
+
+    <springProfile name="local">
+        <property name="LOG_PATH" value="../../../../logs"/>
+        <property name="CONSOLE_LOG_PATH" value="../../../../consoleLogs"/>
+    </springProfile>
+
+    <appender name="DEFAULT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>[%d{yyyy-MM-dd HH:mm:ss}] [%-5level] [%logger{0}:%line] - %msg%n</pattern>
+        </encoder>
+        <prudent>true</prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${CONSOLE_LOG_PATH}/${HOSTNAME}.console-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>500MB</maxFileSize>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="ELK" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+        <prudent>true</prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${HOSTNAME}.filebeat-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>500MB</maxFileSize>
+        </rollingPolicy>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="DEFAULT"/>
+    </root>
+
+    <logger name="ELK_LOGGER" level="INFO" additivity="false">
+        <appender-ref ref="ELK"/>
+    </logger>
+</configuration>
