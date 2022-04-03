@@ -1,5 +1,6 @@
 package capstoneDesign.carbonTracker.service;
 
+import capstoneDesign.carbonTracker.dto.AptEnergyRequest;
 import capstoneDesign.carbonTracker.dto.AptListRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,18 +16,37 @@ import java.net.URLEncoder;
 public class AptService {
 
     @Value("${aptListUrl}")
-    private String url;
+    private String aptListUrl;
 
     @Value("${aptListKey}")
-    private String key;
+    private String aptListKey;
+
+    @Value("${aptEnergyUrl}")
+    private String aptEnergyUrl;
+
+    @Value("${aptEnergyKey}")
+    private String aptEnergyKey;
 
     public String aptLists(AptListRequest aptListRequest) throws IOException {
-        String urlBuilder = url +
-                "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + key + /*Service Key*/
+        String urlBuilder = aptListUrl +
+                "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptListKey + /*Service Key*/
                 "&" + URLEncoder.encode("sidoCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.code), "UTF-8") + /*시도코드*/
                 "&" + URLEncoder.encode("pageNo", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.pageNum), "UTF-8") + /*페이지번호*/
                 "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.count), "UTF-8"); /*목록 건수*/
 
+        return callApi(urlBuilder);
+    }
+
+    public String aptEnergy(AptEnergyRequest aptEnergyRequest) throws IOException {
+        String urlBuilder = aptEnergyUrl +
+                "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptEnergyKey + /*Service Key*/
+                "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.code), "UTF-8") + /*단지코드*/
+                "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.date), "UTF-8"); /*발생년월*/
+
+        return callApi(urlBuilder);
+    }
+
+    private String callApi(String urlBuilder) throws IOException {
         URL url = new URL(urlBuilder);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
