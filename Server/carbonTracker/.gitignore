@@ -6,7 +6,7 @@ build/
 !**/src/test/**/build/
 logs/
 work/
-!**src/main/resources/application.properties
+**/src/main/resources/application.properties
 
 ### STS ###
 .apt_generated
