@@ -1,5 +1,6 @@
 package capstoneDesign.carbonTracker.controller;
 
+import capstoneDesign.carbonTracker.dto.AptEnergyRequest;
 import capstoneDesign.carbonTracker.dto.AptListRequest;
 import capstoneDesign.carbonTracker.service.AptService;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +23,9 @@ public class Controller {
         return aptService.aptLists(aptListRequest);
     }
 
-    @GetMapping("/aptEnergy")
-    public String aptEnergyApi() {
-        return "";
+    @PostMapping("/aptEnergy")
+    public String aptEnergyApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws IOException {
+        log.info("공동주택 에너지 사용 정보");
+        return aptService.aptEnergy(aptEnergyRequest);
     }
 }
