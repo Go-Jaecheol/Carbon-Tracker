@@ -91,7 +91,7 @@ public class ApartmentService {
     }
 
     private void xmlToCsv(String xml, String apiName) throws Exception{
-        File stylesheet = new File("src/main/resources/" + apiName + "Style.xsl");
+        File stylesheet = new File("src/main/resources/data/" + apiName + "Style.xsl");
 
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
@@ -101,7 +101,7 @@ public class ApartmentService {
         Transformer transformer = TransformerFactory.newInstance()
                 .newTransformer(stylesource);
         Source source = new DOMSource(document);
-        Result outputTarget = new StreamResult(new File("src/main/resources/" + apiName + ".csv"));
+        Result outputTarget = new StreamResult(new File("src/main/resources/data/" + apiName + ".csv"));
         transformer.transform(source, outputTarget);
     }
 }

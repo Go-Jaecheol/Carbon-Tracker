@@ -8,6 +8,7 @@ build/
 logs/
 work/
 **/src/main/resources/application.properties
+*.csv
 
 ### STS ###
 .apt_generated
