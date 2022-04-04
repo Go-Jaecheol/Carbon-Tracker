@@ -1,6 +1,6 @@
 package capstoneDesign.carbonTracker.aop;
 
-import capstoneDesign.carbonTracker.log.LogELK;
+import capstoneDesign.carbonTracker.log.LogElk;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -48,7 +48,7 @@ public class AspectELK {
         this.clientUrl = request.getRequestURL().toString();
         String callFunction = pjp.getSignature().getDeclaringTypeName() + "." + pjp.getSignature().getName();
 
-        LogELK logelk = new LogELK();
+        LogElk logelk = new LogElk();
         logelk.setTimestamp(timeStamp);
         logelk.setHostname(host);
         logelk.setHostIp(ip);
@@ -78,7 +78,7 @@ public class AspectELK {
 
         Object[] argNames = pjp.getArgs();
 
-        LogELK logelk = new LogELK();
+        LogElk logelk = new LogElk();
         logelk.setTimestamp(timeStamp);
         logelk.setHostname(host);
         logelk.setHostIp(ip);
@@ -95,7 +95,7 @@ public class AspectELK {
         String timeStamp = new SimpleDateFormat(TIMESTAMP_FORMAT).format(new Timestamp(System.currentTimeMillis()));
         String callFunction = pjp.getSignature().getDeclaringTypeName() + "." + pjp.getSignature().getName();
 
-        LogELK logelk = new LogELK();
+        LogElk logelk = new LogElk();
         logelk.setTimestamp(timeStamp);
         logelk.setHostname(host);
         logelk.setHostIp(ip);
