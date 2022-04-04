@@ -18,13 +18,13 @@ public class ApartmentController {
     private final ApartmentService apartmentService;
 
     @PostMapping("/aptList")
-    public String aptListApi(@RequestBody AptListRequest aptListRequest) throws IOException {
+    public String aptListApi(@RequestBody AptListRequest aptListRequest) throws Exception {
         log.info("공동주택 단지 목록제공 서비스 요청");
         return apartmentService.aptLists(aptListRequest);
     }
 
     @PostMapping("/aptEnergy")
-    public String aptEnergyApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws IOException {
+    public String aptEnergyApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws Exception {
         log.info("공동주택 에너지 사용 정보 요청");
         return apartmentService.aptEnergy(aptEnergyRequest);
     }
