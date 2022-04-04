@@ -1,7 +1,9 @@
-package capstoneDesign.carbonTracker.service;
+package capstoneDesign.carbonTracker.apartment.service;
 
-import capstoneDesign.carbonTracker.dto.AptEnergyRequest;
-import capstoneDesign.carbonTracker.dto.AptListRequest;
+import capstoneDesign.carbonTracker.apartment.dto.AptEnergyRequest;
+import capstoneDesign.carbonTracker.apartment.dto.AptListRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -12,8 +14,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 
+@Slf4j
+@RequiredArgsConstructor
 @Service
-public class AptService {
+public class ApartmentService {
 
     @Value("${aptListUrl}")
     private String aptListUrl;
@@ -30,9 +34,9 @@ public class AptService {
     public String aptLists(AptListRequest aptListRequest) throws IOException {
         String urlBuilder = aptListUrl +
                 "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptListKey + /*Service Key*/
-                "&" + URLEncoder.encode("sidoCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.code), "UTF-8") + /*시도코드*/
-                "&" + URLEncoder.encode("pageNo", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.pageNum), "UTF-8") + /*페이지번호*/
-                "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.count), "UTF-8"); /*목록 건수*/
+                "&" + URLEncoder.encode("sidoCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCode()), "UTF-8") + /*시도코드*/
+                "&" + URLEncoder.encode("pageNo", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getPageNum()), "UTF-8") + /*페이지번호*/
+                "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCount()), "UTF-8"); /*목록 건수*/
 
         return callApi(urlBuilder);
     }
@@ -40,8 +44,8 @@ public class AptService {
     public String aptEnergy(AptEnergyRequest aptEnergyRequest) throws IOException {
         String urlBuilder = aptEnergyUrl +
                 "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptEnergyKey + /*Service Key*/
-                "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.code), "UTF-8") + /*단지코드*/
-                "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.date), "UTF-8"); /*발생년월*/
+                "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getCode()), "UTF-8") + /*단지코드*/
+                "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getDate()), "UTF-8"); /*발생년월*/
 
         return callApi(urlBuilder);
     }
@@ -49,9 +53,11 @@ public class AptService {
     private String callApi(String urlBuilder) throws IOException {
         URL url = new URL(urlBuilder);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
         conn.setRequestMethod("GET");
         conn.setRequestProperty("Content-type", "application/json");
         System.out.println("Response code: " + conn.getResponseCode());
+
         BufferedReader rd;
 
         if(conn.getResponseCode() >= 200 && conn.getResponseCode() <= 300) {
