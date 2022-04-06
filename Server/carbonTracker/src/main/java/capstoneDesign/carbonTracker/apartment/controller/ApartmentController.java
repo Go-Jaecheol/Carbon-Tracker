@@ -23,6 +23,12 @@ public class ApartmentController {
         return apartmentService.aptLists(aptListRequest);
     }
 
+    @GetMapping("/aptListAll")
+    public void aptListApi() throws Exception {
+        log.info("대구시 전체 공동주택 단지 목록 조회 요청");
+        apartmentService.aptListAll();
+    }
+
     @PostMapping("/aptEnergy")
     public String aptEnergyApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws Exception {
         log.info("공동주택 에너지 사용 정보 요청");
