@@ -38,6 +38,7 @@ export default function findMatches(target, candidates) {
     const matched = [];
     const pi = getPartialMatch(target);
     for(let candidate of candidates) {
+        if(target.length < candidate.length) continue;
         if(kmpSearch(candidate, target, pi)) matched.push(candidate);
         if(matched.length === 5) break;
     }
