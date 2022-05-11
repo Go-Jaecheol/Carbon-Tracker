@@ -13,22 +13,15 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.Result;
-import javax.xml.transform.Source;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.transform.stream.StreamSource;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
 
 @Slf4j
@@ -60,6 +53,7 @@ public class ApartmentService {
     @Value("${vWorldKey}")
     private String vWorldKey;
 
+    // 주소 결과를 얻지 못한 경우 check
     private int noneCount = 0;
     private final DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
 
@@ -71,7 +65,7 @@ public class ApartmentService {
                 "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCount()), "UTF-8"); /*목록 건수*/
         String attributeList = "";
 
-        return callApi(urlBuilder, "aptLists", "df", attributeList);
+        return callApi(urlBuilder, "aptLists", "date", attributeList);
     }
 
     public String aptEnergy(AptEnergyRequest aptEnergyRequest) throws Exception {
@@ -84,13 +78,64 @@ public class ApartmentService {
         return callApi(urlBuilder, "aptEnergy", aptEnergyRequest.getDate(), attributeList);
     }
 
+    public String aptEnergyAll(AptEnergyRequest aptEnergyRequest) throws Exception {
+        String[] date = {"202001","202002","202003","202004","202005","202006","202007","202008","202009","202010","202111","202112","202101","202102","202103","202104","202105","202106","202107","202108","202109","202110","202111","202112"};
+        // 반환할 결과 JSON 배열
+        JSONArray resultArray = new JSONArray();
+
+        int i = 0;
+        while(i < date.length) {
+            // 특정 단지 코드에 대해 202001 ~ 202112까지의 에너지 사용량을 구하는 API
+            String urlBuilder = aptEnergyUrl +
+                    "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptEnergyKey + /*Service Key*/
+                    "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getCode()), "UTF-8") + /*단지코드*/
+                    "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*발생년월*/
+
+            String[] result = parsing(urlBuilder);
+
+            // JSON 배열 반환 형태 생성
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("date", date[i]);
+
+            JSONArray energyArray = new JSONArray();
+            Collections.addAll(energyArray, result);
+            jsonObject.put("energy", energyArray);
+
+            resultArray.add(jsonObject);
+            i++;
+        }
+        return resultArray.toJSONString();
+    }
+
+    private String[] parsing(String reqBuilder) throws Exception {
+        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+        Document doc = dBuilder.parse(reqBuilder);
+        doc.getDocumentElement().normalize();
+
+        // 파싱할 root tag
+        NodeList nList = doc.getElementsByTagName("body");
+        Node nNode = nList.item(0);
+        Element eElement = (Element) nNode;
+
+        // 전기, 가스, 수도 사용량 태그 값 추출
+        String helect = getTagValue("helect", eElement);
+        String hgas = getTagValue("hgas", eElement);
+        String hwaterCool = getTagValue("hwaterCool", eElement);
+
+        log.info("전기 사용량: {}, 가스 사용량: {}, 수도 사용량: {}", helect, hgas, hwaterCool);
+
+        return new String[] {helect, hgas, hwaterCool};
+    }
+
     public String aptListAll() throws Exception {
-        // API 호출 결과가 없을 때까지 단지를 1개씩 받아 좌표 변환을 수행한다. 더 이상 받을 수 없는 경우 <item>이 비어있을 것
-        // 결과는 일단 toDB에 append한다.
+        // API 호출 결과가 없을 때까지 단지를 1개씩 받아 좌표 변환을 수행
+        // 결과는 일단 toDB에 append
         StringBuilder toDB = new StringBuilder();
+        JSONArray resultArray = new JSONArray();
         int idx = 1;
 
         while (true) {
+            // 시도 코드를 인자로, 단지 코드와 단지 명을 반환하는 API
             String reqBuilder = aptListUrl +
                     "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptListKey + /*Service Key*/
                     "&" + URLEncoder.encode("sidoCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(27), "UTF-8") + /*시도코드*/
@@ -100,13 +145,24 @@ public class ApartmentService {
             String[] toDB1 = getApt(reqBuilder);
             // 호출 결과가 없는 경우(단지 코드가 없음)
             if (toDB1[0].equals("X")) break;
+            // test용 조건문
+            if (idx > 10) break;
 
+            // 단지 코드를 이용해 도로명 주소와 법정동 주소를 반환하는 API
             String reqBuilder2 = aptBasicInfoUrl +
                     "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptBasicInfoKey + /*Key*/
                     "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(toDB1[0], "UTF-8"); /*단지코드*/
 
-            // 단지코드를 API에 전달, getDoroJuso의 반환 값은 도로명주소와 법정동주소
+            // getDoroJuso의 반환 값은 도로명 주소와 법정동 주소
             String[] toDB2 = getDoroJuso(reqBuilder2);
+
+            // JSON 반환 객체 생성
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("단지코드", toDB1[0]);
+            jsonObject.put("단지명", toDB1[1]);
+            jsonObject.put("도로명주소", toDB2[0]);
+            jsonObject.put("법정동주소", toDB2[1]);
+            resultArray.add(jsonObject);
 
 //            // 지도 좌표 API 사용 코드
 //            String reqBuilder2 = vWorldUrl +
@@ -124,7 +180,6 @@ public class ApartmentService {
 //
 //            // getCoordinate의 반환 값은 도로명 주소, 지번 주소, x,y좌표
 //            String[] toDB2 = getCoordinate(reqBuilder2);
-//
             toDB.append(Arrays.toString(toDB1));
             toDB.append(Arrays.toString(toDB2));
             toDB.append("\n");
@@ -133,21 +188,19 @@ public class ApartmentService {
 
             // log.info(Arrays.toString(toDB1) + Arrays.toString(toDB2));
         }
+        log.info(String.valueOf(resultArray));
         log.info("좌표를 얻지 못한 주소: {}", noneCount);
 
         // TODO toDB는 DB에 추가하기 위한 형태로 변환이 필요, 1 row = (단지 명, 단지 코드(ID), 도로명 주소, 법정동 주소)
-        // TODO 프론트에서 사용할 수 있도록 각각의 단지 코드에 대해 단지명, 단지코드, 도로명주소, 법정동주소를 가지는 JSON 배열로 변환
-        return toDB.toString();
+        return resultArray.toJSONString();
     }
 
     private String[] getDoroJuso(String reqBuilder) throws Exception {
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
         Document doc = dBuilder.parse(reqBuilder);
-
-        // 제일 첫번째 태그
         doc.getDocumentElement().normalize();
 
-        // 파싱할 tag
+        // 파싱할 root tag
         NodeList nList = doc.getElementsByTagName("body");
         Node nNode = nList.item(0);
         Element eElement = (Element) nNode;
@@ -215,11 +268,9 @@ public class ApartmentService {
     private String[] getApt(String reqBuilder) throws Exception {
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
         Document doc = dBuilder.parse(reqBuilder);
-
-        // 제일 첫번째 태그
         doc.getDocumentElement().normalize();
 
-        // 파싱할 tag
+        // 파싱할 root tag
         NodeList nList = doc.getElementsByTagName("body");
         Node nNode = nList.item(0);
         Element eElement = (Element) nNode;
@@ -237,6 +288,23 @@ public class ApartmentService {
         // result[2] = getTagValue("bjdCode", eElement);
 
         log.info("단지의 단지 코드 : {}, 단지 명 : {}", result[0], result[1]);
+
+        return result;
+    }
+
+    private String getTagValue(String tag, Element eElement) {
+        //결과를 저장할 result
+        String result = "";
+
+        // 태그 값을 읽을 수 없는 경우는 해당 결과가 없다느느 의미
+        if (eElement.getElementsByTagName(tag).item(0) == null) {
+            noneCount++;
+            return null;
+        }
+
+        NodeList nlList = eElement.getElementsByTagName(tag).item(0).getChildNodes();
+
+        result = nlList.item(0).getTextContent();
 
         return result;
     }
@@ -270,22 +338,6 @@ public class ApartmentService {
         // xmlToCsv(sb.toString(), apiName, date, attributeList);
 
         return sb.toString();
-    }
-
-    private String getTagValue(String tag, Element eElement) {
-        //결과를 저장할 result 변수 선언
-        String result = "";
-
-        if (eElement.getElementsByTagName(tag).item(0) == null) {
-            noneCount++;
-            return null;
-        }
-
-        NodeList nlList = eElement.getElementsByTagName(tag).item(0).getChildNodes();
-
-        result = nlList.item(0).getTextContent();
-
-        return result;
     }
 
 //    private void xmlToCsv(String xml, String apiName, String date, String attributeList) throws Exception{

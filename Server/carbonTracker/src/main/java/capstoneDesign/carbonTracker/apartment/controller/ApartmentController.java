@@ -34,4 +34,10 @@ public class ApartmentController {
         log.info("공동주택 에너지 사용 정보 요청");
         return apartmentService.aptEnergy(aptEnergyRequest);
     }
+
+    @PostMapping("/aptEnergyAll")
+    public String aptEnergyAllApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws Exception {
+        log.info("특정 단지의 기간별 공동주택 에너지 사용 정보 요청");
+        return apartmentService.aptEnergyAll(aptEnergyRequest);
+    }
 }
