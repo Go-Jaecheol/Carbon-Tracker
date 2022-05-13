@@ -8,6 +8,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -56,6 +57,7 @@ public class ApartmentService {
     // 주소 결과를 얻지 못한 경우 check
     private int noneCount = 0;
     private final DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+    private final KafkaTemplate<String, JSONObject> kafkaTemplate;
 
     public String aptLists(AptListRequest aptListRequest) throws Exception {
         String urlBuilder = aptListUrl +
@@ -79,6 +81,7 @@ public class ApartmentService {
     }
 
     public String aptEnergyAll(AptEnergyRequest aptEnergyRequest) throws Exception {
+        String topic = "energy";
         String[] date = {"202001","202002","202003","202004","202005","202006","202007","202008","202009","202010","202111","202112","202101","202102","202103","202104","202105","202106","202107","202108","202109","202110","202111","202112"};
         // 반환할 결과 JSON 배열
         JSONArray resultArray = new JSONArray();
@@ -91,15 +94,16 @@ public class ApartmentService {
                     "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getCode()), "UTF-8") + /*단지코드*/
                     "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*발생년월*/
 
-            String[] result = parsing(urlBuilder);
-
             // JSON 배열 반환 형태 생성
             JSONObject jsonObject = new JSONObject();
+            jsonObject.put("kaptCode", String.valueOf(aptEnergyRequest.getCode()));
             jsonObject.put("date", date[i]);
+            // parsing 결과 jsonObject에 추가하기 위해 파라미터로 보내고, 반환 받음
+            jsonObject = parsing(urlBuilder, jsonObject);
 
-            JSONArray energyArray = new JSONArray();
-            Collections.addAll(energyArray, result);
-            jsonObject.put("energy", energyArray);
+            // Kafka로 JSON 객체 produce
+            log.info(String.format("Produce message : %s", jsonObject));
+            kafkaTemplate.send(topic, jsonObject);
 
             resultArray.add(jsonObject);
             i++;
@@ -107,7 +111,7 @@ public class ApartmentService {
         return resultArray.toJSONString();
     }
 
-    private String[] parsing(String reqBuilder) throws Exception {
+    private JSONObject parsing(String reqBuilder, JSONObject jsonObject) throws Exception {
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
         Document doc = dBuilder.parse(reqBuilder);
         doc.getDocumentElement().normalize();
@@ -121,15 +125,20 @@ public class ApartmentService {
         String helect = getTagValue("helect", eElement);
         String hgas = getTagValue("hgas", eElement);
         String hwaterCool = getTagValue("hwaterCool", eElement);
+        // 각각 사용량 배열 형태가 아닌 key: value 형태로 바로 저장
+        jsonObject.put("helect", helect);
+        jsonObject.put("hgas", hgas);
+        jsonObject.put("hwaterCool", hwaterCool);
 
         log.info("전기 사용량: {}, 가스 사용량: {}, 수도 사용량: {}", helect, hgas, hwaterCool);
 
-        return new String[] {helect, hgas, hwaterCool};
+        return jsonObject;
     }
 
     public String aptListAll() throws Exception {
         // API 호출 결과가 없을 때까지 단지를 1개씩 받아 좌표 변환을 수행
         // 결과는 일단 toDB에 append
+        String topic = "apt";
         StringBuilder toDB = new StringBuilder();
         JSONArray resultArray = new JSONArray();
         int idx = 1;
@@ -162,6 +171,11 @@ public class ApartmentService {
             jsonObject.put("단지명", toDB1[1]);
             jsonObject.put("도로명주소", toDB2[0]);
             jsonObject.put("법정동주소", toDB2[1]);
+
+            // Kafka로 JSON 객체 produce
+            log.info(String.format("Produce message : %s", jsonObject));
+            kafkaTemplate.send(topic, jsonObject);
+
             resultArray.add(jsonObject);
 
 //            // 지도 좌표 API 사용 코드
