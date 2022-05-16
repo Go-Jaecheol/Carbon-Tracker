@@ -21,9 +21,7 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -48,36 +46,40 @@ public class ApartmentService {
     @Value("${aptBasicInfoKey}")
     private String aptBasicInfoKey;
 
-    @Value("${vWorldUrl}")
-    private String vWorldUrl;
+    @Value("${electUsageUrl}")
+    private String electUsageUrl;
 
-    @Value("${vWorldKey}")
-    private String vWorldKey;
+    @Value("${gasUsageUrl}")
+    private String gasUsageUrl;
+
+    @Value("${gasUsageKey}")
+    private String gasUsageKey;
+
+    private final Map<String, String> sigunguCodeMap = new HashMap<>();
 
     // 주소 결과를 얻지 못한 경우 check
     private int noneCount = 0;
-    private final DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
     private final KafkaTemplate<String, JSONObject> kafkaTemplate;
 
     public String aptLists(AptListRequest aptListRequest) throws Exception {
-        String urlBuilder = aptListUrl +
+        String reqBuilder = aptListUrl +
                 "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptListKey + /*Service Key*/
                 "&" + URLEncoder.encode("sidoCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCode()), "UTF-8") + /*시도코드*/
                 "&" + URLEncoder.encode("pageNo", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getPageNum()), "UTF-8") + /*페이지번호*/
                 "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCount()), "UTF-8"); /*목록 건수*/
         String attributeList = "";
 
-        return callApi(urlBuilder, "aptLists", "date", attributeList);
+        return callApi(reqBuilder, "aptLists", "date", attributeList);
     }
 
     public String aptEnergy(AptEnergyRequest aptEnergyRequest) throws Exception {
-        String urlBuilder = aptEnergyUrl +
+        String reqBuilder = aptEnergyUrl +
                 "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptEnergyKey + /*Service Key*/
                 "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getCode()), "UTF-8") + /*단지코드*/
                 "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getDate()), "UTF-8"); /*발생년월*/
         String attributeList = "kaptCode,helect,hgas,hheat,hwaterCool,reqDate\n";
 
-        return callApi(urlBuilder, "aptEnergy", aptEnergyRequest.getDate(), attributeList);
+        return callApi(reqBuilder, "aptEnergy", aptEnergyRequest.getDate(), attributeList);
     }
 
     public String aptEnergyAll(AptEnergyRequest aptEnergyRequest) throws Exception {
@@ -85,6 +87,7 @@ public class ApartmentService {
         String[] date = {"202001","202002","202003","202004","202005","202006","202007","202008","202009","202010","202111","202112","202101","202102","202103","202104","202105","202106","202107","202108","202109","202110","202111","202112"};
         // 반환할 결과 JSON 배열
         JSONArray resultArray = new JSONArray();
+        initSigunguCodeMap();
 
         int i = 0;
         while(i < date.length) {
@@ -99,11 +102,54 @@ public class ApartmentService {
             jsonObject.put("kaptCode", String.valueOf(aptEnergyRequest.getCode()));
             jsonObject.put("date", date[i]);
             // parsing 결과 jsonObject에 추가하기 위해 파라미터로 보내고, 반환 받음
-            jsonObject = parsing(urlBuilder, jsonObject);
+            jsonObject = getEnergyUsage(urlBuilder, jsonObject);
+
+            // TODO ES로부터 단지코드를 이용해 도로명주소와 법정동코드를 조회해야 함
+            String doroJuso = "대구광역시 중구 동인동1가 33-1 동인시티타운";
+            String bjdongCode = "10100";
+
+            String[] tokens = doroJuso.split(" ");
+
+            String sigunguCode = sigunguCodeMap.get(tokens[1]);
+            String[] tmp = tokens[3].split("-");
+            String bun = "0".repeat(4 - tmp[0].length()) + tmp[0];
+            String ji = (tmp.length == 1 ? "0000" : "0".repeat(4 - tmp[1].length()) + tmp[1]);
+
+            log.info("시군구코드 : {}, 법정동코드: {}, 번: {}, 지: {}", sigunguCode, bjdongCode, bun, ji);
+
+            // 국토교통부_건물에너지정보_서비스 사용
+            String gasUrlBuilder = gasUsageUrl +
+                    "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + gasUsageKey + /*Service Key*/
+                    "&" + URLEncoder.encode("sigunguCd", "UTF-8") + "=" + URLEncoder.encode(sigunguCode, "UTF-8") + /*시군구코드*/
+                    "&" + URLEncoder.encode("bjdongCd", "UTF-8") + "=" + URLEncoder.encode(bjdongCode, "UTF-8") + /*법정동코드*/
+                    "&" + URLEncoder.encode("bun", "UTF-8") + "=" + URLEncoder.encode(bun, "UTF-8") + /*번*/
+                    "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
+                    "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
+
+            jsonObject = getOneUsage(gasUrlBuilder, jsonObject, "hgas");
+
+            if (jsonObject.get(("helect")).equals(0)) {
+                String electUrlBuilder = electUsageUrl +
+                        "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + gasUsageKey + /*Service Key*/
+                        "&" + URLEncoder.encode("sigunguCd", "UTF-8") + "=" + URLEncoder.encode(sigunguCode, "UTF-8") + /*시군구코드*/
+                        "&" + URLEncoder.encode("bjdongCd", "UTF-8") + "=" + URLEncoder.encode(bjdongCode, "UTF-8") + /*법정동코드*/
+                        "&" + URLEncoder.encode("bun", "UTF-8") + "=" + URLEncoder.encode(bun, "UTF-8") + /*번*/
+                        "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
+                        "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
+
+                jsonObject = getOneUsage(electUrlBuilder, jsonObject, "helect");
+            }
+
+            // 탄소 사용량 계산 및 추가
+            int helect = (int) (Double.parseDouble(Objects.toString(jsonObject.get("helect"))) * 0.4663);
+            int hgas = (int) (Double.parseDouble(Objects.toString(jsonObject.get("hgas"))) * 2.22);
+            int hwaterCool = (int) (Double.parseDouble(Objects.toString(jsonObject.get("hwaterCool"))) * 0.3332);
+
+            jsonObject.put("carbonEnergy", helect + hgas + hwaterCool);
 
             // Kafka로 JSON 객체 produce
             log.info(String.format("Produce message : %s", jsonObject));
-            kafkaTemplate.send(topic, jsonObject);
+            // kafkaTemplate.send(topic, jsonObject);
 
             resultArray.add(jsonObject);
             i++;
@@ -111,35 +157,10 @@ public class ApartmentService {
         return resultArray.toJSONString();
     }
 
-    private JSONObject parsing(String reqBuilder, JSONObject jsonObject) throws Exception {
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        Document doc = dBuilder.parse(reqBuilder);
-        doc.getDocumentElement().normalize();
-
-        // 파싱할 root tag
-        NodeList nList = doc.getElementsByTagName("body");
-        Node nNode = nList.item(0);
-        Element eElement = (Element) nNode;
-
-        // 전기, 가스, 수도 사용량 태그 값 추출
-        String helect = getTagValue("helect", eElement);
-        String hgas = getTagValue("hgas", eElement);
-        String hwaterCool = getTagValue("hwaterCool", eElement);
-        // 각각 사용량 배열 형태가 아닌 key: value 형태로 바로 저장
-        jsonObject.put("helect", helect);
-        jsonObject.put("hgas", hgas);
-        jsonObject.put("hwaterCool", hwaterCool);
-
-        log.info("전기 사용량: {}, 가스 사용량: {}, 수도 사용량: {}", helect, hgas, hwaterCool);
-
-        return jsonObject;
-    }
-
     public String aptListAll() throws Exception {
         // API 호출 결과가 없을 때까지 단지를 1개씩 받아 좌표 변환을 수행
         // 결과는 일단 toDB에 append
         String topic = "apt";
-        StringBuilder toDB = new StringBuilder();
         JSONArray resultArray = new JSONArray();
         int idx = 1;
 
@@ -151,7 +172,7 @@ public class ApartmentService {
                     "&" + URLEncoder.encode("pageNo", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(idx), "UTF-8") + /*페이지번호*/
                     "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(1), "UTF-8"); /*목록 건수*/
 
-            String[] toDB1 = getApt(reqBuilder);
+            String[] toDB1 = getAptCodeAndName(reqBuilder);
             // 호출 결과가 없는 경우(단지 코드가 없음)
             if (toDB1[0].equals("X")) break;
             // test용 조건문
@@ -171,6 +192,7 @@ public class ApartmentService {
             jsonObject.put("단지명", toDB1[1]);
             jsonObject.put("도로명주소", toDB2[0]);
             jsonObject.put("법정동주소", toDB2[1]);
+            jsonObject.put("법정동코드", toDB2[2]);
 
             // Kafka로 JSON 객체 produce
             log.info(String.format("Produce message : %s", jsonObject));
@@ -194,40 +216,44 @@ public class ApartmentService {
 //
 //            // getCoordinate의 반환 값은 도로명 주소, 지번 주소, x,y좌표
 //            String[] toDB2 = getCoordinate(reqBuilder2);
-            toDB.append(Arrays.toString(toDB1));
-            toDB.append(Arrays.toString(toDB2));
-            toDB.append("\n");
 
             idx++;
-
-            // log.info(Arrays.toString(toDB1) + Arrays.toString(toDB2));
         }
         log.info(String.valueOf(resultArray));
         log.info("좌표를 얻지 못한 주소: {}", noneCount);
 
-        // TODO toDB는 DB에 추가하기 위한 형태로 변환이 필요, 1 row = (단지 명, 단지 코드(ID), 도로명 주소, 법정동 주소)
+        // TODO toDB는 DB에 추가하기 위한 형태로 변환이 필요, 1 row = (단지 명, 단지 코드(ID), 도로명 주소, 법정동 주소, 법정동 코드)
         return resultArray.toJSONString();
     }
 
-    private String[] getDoroJuso(String reqBuilder) throws Exception {
+    // private init methods
+
+    private void initSigunguCodeMap() {
+        sigunguCodeMap.put("남구", "27200");
+        sigunguCodeMap.put("달서구", "27290");
+        sigunguCodeMap.put("달성군", "27710");
+        sigunguCodeMap.put("동구", "27140");
+        sigunguCodeMap.put("북구", "27230");
+        sigunguCodeMap.put("서구", "27170");
+        sigunguCodeMap.put("수성구", "27260");
+        sigunguCodeMap.put("중구", "27110");
+    }
+
+    private Document initDocument(String reqBuilder) throws Exception {
+        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
         Document doc = dBuilder.parse(reqBuilder);
         doc.getDocumentElement().normalize();
-
-        // 파싱할 root tag
-        NodeList nList = doc.getElementsByTagName("body");
-        Node nNode = nList.item(0);
-        Element eElement = (Element) nNode;
-
-        String kaptAddr = getTagValue("kaptAddr", eElement);
-        String doroJuso = getTagValue("doroJuso", eElement);
-
-        log.info("단지의 법정동주소 : {}, 도로명주소 : {}", kaptAddr, doroJuso);
-
-        return new String[] {kaptAddr, doroJuso};
+        return doc;
     }
 
-    private String[] getCoordinate(String reqBuilder) throws Exception {
+    private Element initElement(Document doc) {
+        NodeList nList = doc.getElementsByTagName("body");
+        Node nNode = nList.item(0);
+        return (Element) nNode;
+    }
+
+    private HttpURLConnection initConnection(String reqBuilder) throws Exception {
         URL url = new URL(reqBuilder);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
@@ -235,17 +261,76 @@ public class ApartmentService {
         conn.setRequestProperty("Content-type", "application/json");
         log.info("Response code: {}", conn.getResponseCode());
 
-        BufferedReader rd;
+        return conn;
+    }
+
+    private BufferedReader initBufferedReader(HttpURLConnection conn) throws Exception {
+        BufferedReader br;
 
         if(conn.getResponseCode() >= 200 && conn.getResponseCode() <= 300) {
-            rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
         } else {
-            rd = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+            br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
         }
+
+        return br;
+    }
+
+    // private detail service methods
+
+    private JSONObject getOneUsage(String reqBuilder, JSONObject jsonObject, String type) throws Exception {
+        Element eElement = initElement(initDocument(reqBuilder));
+
+        // 가스 사용량 태그 값 추출
+        String tmp = getTagValue("useQty", eElement);
+        int useQty;
+        if (tmp == null) useQty = 0;
+        else {
+            useQty = (int) Double.parseDouble(tmp);
+        }
+        // 각각 사용량 배열 형태가 아닌 key: value 형태로 바로 저장
+        jsonObject.put(type, useQty);
+
+        log.info("{} 사용량: {}", Objects.equals(type, "hgas") ? "가스" : "전기", useQty);
+
+        return jsonObject;
+    }
+
+    private JSONObject getEnergyUsage(String reqBuilder, JSONObject jsonObject) throws Exception {
+        Element eElement = initElement(initDocument(reqBuilder));
+
+        // 전기, 수도 사용량 태그 값 추출
+        String helect = getTagValue("helect", eElement);
+        String hwaterCool = getTagValue("hwaterCool", eElement);
+
+        // 각각 사용량 배열 형태가 아닌 key: value 형태로 바로 저장
+        jsonObject.put("helect", Integer.parseInt(helect == null ? "0" : helect));
+        jsonObject.put("hwaterCool", Integer.parseInt(hwaterCool == null ? "0" : hwaterCool));
+
+        log.info("전기 사용량: {}, 수도 사용량: {}", helect, hwaterCool);
+
+        return jsonObject;
+    }
+
+    private String[] getDoroJuso(String reqBuilder) throws Exception {
+        Element eElement = initElement(initDocument(reqBuilder));
+
+        String kaptAddr = getTagValue("kaptAddr", eElement);
+        String doroJuso = getTagValue("doroJuso", eElement);
+        String bjdCode = getTagValue("bjdCode", eElement);
+
+        log.info("단지의 법정동주소 : {}, 도로명주소 : {}, 법정동코드: {}", kaptAddr, doroJuso, bjdCode);
+
+        return new String[] {kaptAddr, doroJuso, bjdCode};
+    }
+
+    private String[] getCoordinate(String reqBuilder) throws Exception {
+        HttpURLConnection conn = initConnection(reqBuilder);
+        BufferedReader br = initBufferedReader(conn);
 
         // log.info(String.valueOf(result));
         JSONParser parser = new JSONParser();
-        JSONObject objData = (JSONObject) parser.parse(rd);
+        JSONObject objData = (JSONObject) parser.parse(br);
         JSONObject response = (JSONObject) objData.get("response");
         // log.info(String.valueOf(response));
         JSONObject result = (JSONObject) response.get("result");
@@ -273,21 +358,14 @@ public class ApartmentService {
         String x = (String) point.get("x");
         // log.info(x);
 
-        rd.close();
+        br.close();
         conn.disconnect();
 
         return new String[] {road, parcel, y, x};
     }
 
-    private String[] getApt(String reqBuilder) throws Exception {
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        Document doc = dBuilder.parse(reqBuilder);
-        doc.getDocumentElement().normalize();
-
-        // 파싱할 root tag
-        NodeList nList = doc.getElementsByTagName("body");
-        Node nNode = nList.item(0);
-        Element eElement = (Element) nNode;
+    private String[] getAptCodeAndName(String reqBuilder) throws Exception {
+        Element eElement = initElement(initDocument(reqBuilder));
 
         int thisCount = Integer.parseInt(Objects.requireNonNull(getTagValue("pageNo", eElement)));
         int totalCount = Integer.parseInt(Objects.requireNonNull(getTagValue("totalCount", eElement)));
@@ -310,7 +388,7 @@ public class ApartmentService {
         //결과를 저장할 result
         String result = "";
 
-        // 태그 값을 읽을 수 없는 경우는 해당 결과가 없다느느 의미
+        // 태그 값을 읽을 수 없는 경우는 해당 결과가 없다는 의미
         if (eElement.getElementsByTagName(tag).item(0) == null) {
             noneCount++;
             return null;
@@ -323,30 +401,18 @@ public class ApartmentService {
         return result;
     }
 
-    private String callApi(String urlBuilder, String apiName, String date, String attributeList) throws Exception {
-        URL url = new URL(urlBuilder);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
-        conn.setRequestMethod("GET");
-        conn.setRequestProperty("Content-type", "application/json");
-        log.info("Response code: {}", conn.getResponseCode());
-
-        BufferedReader rd;
-
-        if(conn.getResponseCode() >= 200 && conn.getResponseCode() <= 300) {
-            rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        } else {
-            rd = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-        }
+    private String callApi(String reqBuilder, String apiName, String date, String attributeList) throws Exception {
+        HttpURLConnection conn = initConnection(reqBuilder);
+        BufferedReader br = initBufferedReader(conn);
 
         StringBuilder sb = new StringBuilder();
         String line;
 
-        while ((line = rd.readLine()) != null) {
+        while ((line = br.readLine()) != null) {
             sb.append(line);
         }
 
-        rd.close();
+        br.close();
         conn.disconnect();
 
         // xmlToCsv(sb.toString(), apiName, date, attributeList);
