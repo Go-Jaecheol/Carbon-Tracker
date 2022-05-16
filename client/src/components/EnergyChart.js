@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 import styled from 'styled-components';
 
@@ -10,27 +10,36 @@ const ChartWrapper = styled.div`
   background: white;
   box-shadow: 2px 4px 16px rgb(0 0 0 / 7%);
   border-radius: 15px;
-`
+`;
+
+const ChartSelect = styled.select`
+  margin-left: 20px;
+  margin-bottom: 10px;
+`;
 
 const ChartLegendWrapper = styled.div`
   display: flex;
   justify-content: flex-end;
-`
+`;
 
 const ChartLegendItem = styled.div`
   margin-right: 40px;
   ${({ color }) => (`& span { color: ${color} }`)}
-`
+`;
+
+const KR_DateFormat_URL = 
+  'https://cdn.jsdelivr.net/npm/d3-time-format@3/locale/ko-KR.json';
+
+const Legent_Labels = [
+  { label: '탄소 배출량', color: '#FB6B6B'},
+  { label: '전기 사용량', color: '#6956E5' },
+  { label: '가스 사용량', color: '#56E564' },
+  { label: '수도 사용량', color: '#E556C6' },
+];
 
 export default function EnergyChart() {
-  const KR_DateFormat_URL = 'https://cdn.jsdelivr.net/npm/d3-time-format@3/locale/ko-KR.json';
   const ref = useRef(null);
-  const legendLabels = [
-    { label: '탄소 배출량', color: '#FB6B6B'},
-    { label: '전기 사용량', color: '#6956E5' },
-    { label: '가스 사용량', color: '#56E564' },
-    { label: '수도 사용량', color: '#E556C6' },
-  ];
+  const [chartType, setChartType] = useState(0);
 
   useEffect(() => {
     const currentElement = ref.current;
@@ -38,12 +47,9 @@ export default function EnergyChart() {
     const width = currentElement.offsetWidth;
     const height = 500;
 
-    // svg 추가 및 viewBox 지정
-    const documentElement = d3
-      .select(currentElement)
-      .call((g) => g.select('svg').remove()) 
-      .append('svg') 
-      .attr('viewBox', `0, 0, ${width}, ${height}`); 
+    if (chartType) {
+      margin.left /= 3;
+    }
 
     // 한국식 날짜 가져오기
     d3.json(KR_DateFormat_URL).then(locale => {
@@ -108,45 +114,88 @@ export default function EnergyChart() {
         );
       };
 
-      // 그리기 
-      const axises = [xAxis, elecAxis, gasAxis, waterAxis];
+      // 차트 업데이트
+      const updateChart = (axises, labels, lineItems) => {
+        // svg 추가 및 viewBox 지정
+        const documentElement = d3
+          .select(currentElement)
+          .call((g) => g.select('svg').remove()) 
+          .append('svg') 
+          .attr('viewBox', `0, 0, ${width}, ${height}`); 
+        
+        // 차트가 하나일 시 y축 axise 위치 수정
+        if (axises.length === 2) {
+          axises[1] = (g) => {
+            g.attr('transform', `translate(${margin.left}, 0)`).call(
+              d3.axisLeft(elecY)
+            );
+          };
+        }
+          
+        // axise 추가
+        axises.forEach(axis => {
+          documentElement.append('g')
+            .call(axis)
+            .attr('font-size', '0.7em');
+        });
+  
+        // label 추가
+        labels.forEach((label, i) => {
+          documentElement.append('text')
+          .attr('transform', `translate(${margin.left / 3 * (3 - i)}, ${margin.top / 3})`)
+          .style('text-anchor', 'end')
+          .attr('font-size', '1em')
+          .text(label);
+        });
+  
+        // line chart 추가
+        lineItems.forEach((line, i) => {
+          documentElement.append('path')
+            .datum(energyData)
+            .attr('fill', 'none')
+            .attr('stroke', !chartType 
+              ? Legent_Labels[i + 1].color 
+              : Legent_Labels[chartType].color)
+            .attr('stroke-width', 4)
+            .attr('stroke-linejoin', 'round')
+            .attr('stroke-linecap', 'round')
+            .attr('d', line(energyData));
+        });
+      }
 
+      const axises = [xAxis, elecAxis, gasAxis, waterAxis];
+      const lineItems = [elecLine, gasLine, waterLine];
       const labels = ['전기', '가스', '수도'];
 
-      const lineItems = [elecLine, gasLine, waterLine];
-
-      axises.forEach(axis => {
-        documentElement.append('g')
-          .call(axis)
-          .attr('font-size', '0.7em');
-      });
-
-      labels.forEach((label, i) => {
-        documentElement.append('text')
-        .attr('transform', `translate(${margin.left / 3 * (3 - i)}, ${margin.top / 3})`)
-        .style('text-anchor', 'end')
-        .attr('font-size', '1em')
-        .text(label);
-      })
-
-      lineItems.forEach((line, i) => {
-        documentElement.append('path')
-          .datum(energyData)
-          .attr('fill', 'none')
-          .attr('stroke', legendLabels[i + 1].color)
-          .attr('stroke-width', 4)
-          .attr('stroke-linejoin', 'round')
-          .attr('stroke-linecap', 'round')
-          .attr('d', line(energyData));
-      });
+      if (!chartType) {
+        updateChart(axises, labels, lineItems);
+      } else {
+        updateChart(
+          [axises[0], axises[chartType]], 
+          [labels[chartType - 1]], 
+          [lineItems[chartType - 1]
+        ]);
+      }
     })
-  }, []);
+  }, [chartType]);
+
+  const handleSelectChange = (e) => {
+    setChartType(+e.target.value);
+  }
 
   return (
     <ChartWrapper ref={ref}>
+      <ChartSelect onChange={handleSelectChange}>
+        <option value="0">전체</option>
+        <option value="1">전기 사용량</option>
+        <option value="2">가스 사용량</option>
+        <option value="3">수도 사용량</option>
+      </ChartSelect>
       <ChartLegendWrapper>
-        {legendLabels.map(({ label, color }) => (
-          <ChartLegendItem color={color}><span>●</span> {label}</ChartLegendItem>
+        {Legent_Labels.map(({ label, color }) => (
+          <ChartLegendItem key={label} color={color}>
+            <span>●</span> {label}
+          </ChartLegendItem>
         ))}
       </ChartLegendWrapper>
     </ChartWrapper>
