@@ -88,7 +88,6 @@ export default function EnergyChart() {
         .x((data) => x(data.date))
         .y((data) => waterY(data.water));
 
-      
       // Axis 정의
       const xAxis = (g) => {
         g.attr('transform', `translate(0, ${height - margin.bottom})`).call(
@@ -124,14 +123,14 @@ export default function EnergyChart() {
           .attr('viewBox', `0, 0, ${width}, ${height}`); 
         
         // 차트가 하나일 시 y축 axise 위치 수정
-        if (axises.length === 2) {
+        if (chartType) {
           axises[1] = (g) => {
             g.attr('transform', `translate(${margin.left}, 0)`).call(
-              d3.axisLeft(elecY)
+              d3.axisLeft(yItems[chartType - 1])
             );
           };
         }
-          
+
         // axise 추가
         axises.forEach(axis => {
           documentElement.append('g')
@@ -163,6 +162,7 @@ export default function EnergyChart() {
         });
       }
 
+      const yItems = [elecY, gasY, waterY];
       const axises = [xAxis, elecAxis, gasAxis, waterAxis];
       const lineItems = [elecLine, gasLine, waterLine];
       const labels = ['전기', '가스', '수도'];
@@ -177,7 +177,7 @@ export default function EnergyChart() {
         ]);
       }
     })
-  }, [chartType]);
+  });
 
   const handleSelectChange = (e) => {
     setChartType(+e.target.value);
