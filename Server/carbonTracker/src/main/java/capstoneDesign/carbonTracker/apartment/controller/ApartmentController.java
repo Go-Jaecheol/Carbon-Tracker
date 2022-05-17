@@ -2,12 +2,11 @@ package capstoneDesign.carbonTracker.apartment.controller;
 
 import capstoneDesign.carbonTracker.apartment.dto.AptEnergyRequest;
 import capstoneDesign.carbonTracker.apartment.dto.AptListRequest;
-import capstoneDesign.carbonTracker.apartment.service.ApartmentService;
+import capstoneDesign.carbonTracker.apartment.service.AptEnergyService;
+import capstoneDesign.carbonTracker.apartment.service.AptListService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -15,7 +14,9 @@ import java.io.IOException;
 @RestController
 public class ApartmentController {
 
-    private final ApartmentService apartmentService;
+    private final AptListService apartmentService;
+
+    private final AptEnergyService aptEnergyService;
 
     @PostMapping("/aptList")
     public String aptListApi(@RequestBody AptListRequest aptListRequest) throws Exception {
@@ -32,12 +33,12 @@ public class ApartmentController {
     @PostMapping("/aptEnergy")
     public String aptEnergyApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws Exception {
         log.info("공동주택 에너지 사용 정보 요청");
-        return apartmentService.aptEnergy(aptEnergyRequest);
+        return aptEnergyService.aptEnergy(aptEnergyRequest);
     }
 
     @PostMapping("/aptEnergyAll")
     public String aptEnergyAllApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws Exception {
         log.info("특정 단지의 기간별 공동주택 에너지 사용 정보 요청");
-        return apartmentService.aptEnergyAll(aptEnergyRequest);
+        return aptEnergyService.aptEnergyAll(aptEnergyRequest);
     }
 }
