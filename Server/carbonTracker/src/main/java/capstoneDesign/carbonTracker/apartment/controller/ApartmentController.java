@@ -2,11 +2,14 @@ package capstoneDesign.carbonTracker.apartment.controller;
 
 import capstoneDesign.carbonTracker.apartment.dto.AptEnergyRequest;
 import capstoneDesign.carbonTracker.apartment.dto.AptListRequest;
+import capstoneDesign.carbonTracker.apartment.dto.AptListResponse;
 import capstoneDesign.carbonTracker.apartment.service.AptEnergyService;
 import capstoneDesign.carbonTracker.apartment.service.AptListService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -25,9 +28,15 @@ public class ApartmentController {
     }
 
     @GetMapping("/aptListAll")
-    public String aptListApi() throws Exception {
+    public List<AptListResponse> aptListApi() throws Exception {
         log.info("대구시 전체 공동주택 단지 목록 조회 요청");
         return apartmentService.aptListAll();
+    }
+
+    @GetMapping("/aptListUpdate")
+    public String aptListUpdateApi() throws Exception {
+        log.info("대구시 전체 공동주택 단지 목록 조회 요청");
+        return apartmentService.aptListUpdate();
     }
 
     @PostMapping("/aptEnergy")

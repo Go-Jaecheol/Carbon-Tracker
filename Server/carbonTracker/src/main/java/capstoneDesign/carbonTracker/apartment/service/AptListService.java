@@ -1,12 +1,12 @@
 package capstoneDesign.carbonTracker.apartment.service;
 
-import capstoneDesign.carbonTracker.apartment.dto.AptEnergyRequest;
 import capstoneDesign.carbonTracker.apartment.dto.AptListRequest;
+import capstoneDesign.carbonTracker.apartment.dto.AptListResponse;
+import capstoneDesign.carbonTracker.apartment.repository.AptListRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -43,6 +43,7 @@ public class AptListService {
     // 주소 결과를 얻지 못한 경우 check
     private int noneCount = 0;
     private final KafkaTemplate<String, JSONObject> kafkaTemplate;
+    private final AptListRepository aptListRepository;
 
     public String aptLists(AptListRequest aptListRequest) throws Exception {
         String reqBuilder = aptListUrl +
@@ -57,9 +58,8 @@ public class AptListService {
          return callApi(reqBuilder, "aptLists", "date", attributeList);
     }
 
-    public String aptListAll() throws Exception {
+    public String aptListUpdate() throws Exception {
         // API 호출 결과가 없을 때까지 단지를 1개씩 받아 좌표 변환을 수행
-        // 결과는 일단 toDB에 append
         String topic = "apt";
         JSONArray resultArray = new JSONArray();
         int idx = 1;
@@ -76,7 +76,7 @@ public class AptListService {
             // 호출 결과가 없는 경우(단지 코드가 없음)
             if (toDB1[0].equals("X")) break;
             // test용 조건문
-            // if (idx > 10) break;
+            // if (idx > 5) break;
 
             // 단지 코드를 이용해 도로명 주소와 법정동 주소를 반환하는 API
             String reqBuilder2 = aptBasicInfoUrl +
@@ -88,15 +88,15 @@ public class AptListService {
 
             // JSON 반환 객체 생성
             JSONObject jsonObject = new JSONObject();
-            jsonObject.put("단지코드", toDB1[0]);
-            jsonObject.put("단지명", toDB1[1]);
-            jsonObject.put("법정동주소", toDB2[0]);
-            jsonObject.put("도로명주소", toDB2[1]);
-            jsonObject.put("법정동코드", toDB2[2]);
+            jsonObject.put("kaptCode", toDB1[0]);
+            jsonObject.put("kaptName", toDB1[1]);
+            jsonObject.put("bjdJuso", toDB2[0]);
+            jsonObject.put("doroJuso", toDB2[1]);
+            jsonObject.put("bjdCode", toDB2[2]);
 
             // Kafka로 JSON 객체 produce
             log.info(String.format("Produce message : %s", jsonObject));
-            // kafkaTemplate.send(topic, jsonObject);
+            kafkaTemplate.send(topic, jsonObject);
 
             resultArray.add(jsonObject);
 
@@ -105,8 +105,11 @@ public class AptListService {
         log.info(String.valueOf(resultArray));
         log.info("좌표를 얻지 못한 주소: {}", noneCount);
 
-        // TODO toDB는 DB에 추가하기 위한 형태로 변환이 필요, 1 row = (단지 명, 단지 코드(ID), 도로명 주소, 법정동 주소, 법정동 코드)
         return resultArray.toJSONString();
+    }
+
+    public List<AptListResponse> aptListAll() throws Exception {
+        return aptListRepository.findAll().getContent();
     }
 
     // private init methods
