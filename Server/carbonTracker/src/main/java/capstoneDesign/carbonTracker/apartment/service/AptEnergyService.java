@@ -162,12 +162,12 @@ public class AptEnergyService {
                 // Kafka로 JSON 객체 produce
                 log.info(String.format("Produce message : %s", jsonObject));
                 kafkaTemplate.send(topic, jsonObject);
-                i++;
             }
 
             // TODO ES로부터 단지코드를 이용해 도로명주소와 법정동코드를 조회해야 함
 
             resultArray.add(jsonObject);
+            i++;
         }
         return resultArray.toJSONString();
     }

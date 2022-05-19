@@ -1,9 +1,6 @@
-package capstoneDesign.carbonTracker.configuration;
+package capstoneDesign.carbonTracker.config;
 
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
