@@ -1,13 +1,9 @@
 import React, { useState } from "react";
+import { useRecoilValue } from "recoil";
 import styled from "styled-components";
 
+import { housingState } from "../atoms";
 import findMatches from "../utils/findMatches";
-
-const housingSample = [
-    "대구광역시 중구 동인동1가 33-1 동인시티타운",
-    "대구광역시 중구 태평로3가 1 대구역센트럴자이아파트",
-    "대구광역시 중구 남산동 437-1 인터불고코아시스"
-];
 
 const SearchBarContainer = styled.div`
     position: relative;
@@ -57,12 +53,13 @@ export default function SearchBar() {
     const [target, setTarget] = useState("");
     const [suggestion, setSuggestion] = useState([]);
     const [focused, setFocused] = useState(false);
+    const housingInformation = useRecoilValue(housingState);
 
     const handleChange = (event) => {
         setTarget(event.target.value);
         if(pending !== null) clearTimeout(pending);
         pending = setTimeout(() => {
-            setSuggestion([...findMatches(event.target.value, housingSample)]);
+            setSuggestion([...findMatches(event.target.value, housingInformation)]);
             pending = null;
         }, 500);
     }
@@ -79,7 +76,7 @@ export default function SearchBar() {
             />
             {suggestion.length > 0 && focused &&
             <SuggestionContainer>
-                {suggestion.map(name => <Suggestion key={name}>{name}</Suggestion>)}
+                {suggestion.map(name => <Suggestion key={name.bjdJuso}>{name.bjdJuso}</Suggestion>)}
             </SuggestionContainer>
             }
         </SearchBarContainer>
