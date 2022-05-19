@@ -10,10 +10,25 @@ export const getHousingEnergyUsage = async (housingCode) => {
     if (energyUsageCache[housingCode]) {
         return energyUsageCache[housingCode];
     }
+
+    const body = { code: housingCode };
+
+    const headers = { 'Content-Type': 'application/json' };
     
-    const energyUsage = await post(baseURL);
-    energyUsageCache[housingCode] = energyUsage;
-    return energyUsage;
+    const { status, data } = await post(
+        baseURL + '/aptEnergyAll', 
+        body,
+        headers
+    );
+
+    if (status !== 200) {
+        alert('에너지 사용량 데이터 요청에 실패했습니다.')
+        return null;
+    }
+
+    energyUsageCache[housingCode] = data;
+
+    return data;
 }
 
 const energyUsageCache = {};

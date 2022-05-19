@@ -4,15 +4,20 @@ import styled from 'styled-components';
 
 import { getHousingEnergyUsage } from '../api/index';
 
-import { data } from './data';
-
 const ChartWrapper = styled.div`
-  width: 80%;
-  padding: 20px;
+  width: 800px;
+  height: 500px;
+  padding: 15px 10px; 
   background: white;
   box-shadow: 2px 4px 16px rgb(0 0 0 / 7%);
   border-radius: 15px;
 `;
+
+const ChartHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+`
 
 const ChartSelect = styled.select`
   margin-left: 20px;
@@ -41,145 +46,182 @@ const Legent_Labels = [
 
 export default function EnergyChart() {
   const ref = useRef(null);
+  const [energyData, setEnerygyData] = useState(null);
   const [chartType, setChartType] = useState(0);
 
   useEffect(() => {
-    const currentElement = ref.current;
-    const margin = { top: 40, right: 20, bottom: 20, left: 200 };
-    const width = currentElement.offsetWidth;
-    const height = 500;
-
-    if (chartType) {
-      margin.left /= 3;
+    let dateParse;
+    // 한국식 날짜 가져오기
+    const formatDateLocale = async () => {
+      const locale = await d3.json(KR_DateFormat_URL);
+      d3.timeFormatDefaultLocale(locale);
+      dateParse = d3.timeParse('%Y%m');
+    }
+    
+    const requestEnergyData = async () => {
+      const response = await getHousingEnergyUsage('A70283310');
+      setEnerygyData(response.map((data) => ({
+        date: dateParse(data.date),
+        elec: data.helect,
+        gas: data.hgas,
+        water: data.hwaterCool,
+        carbon: data.carbonEnergy
+      })))
     }
 
-    // 한국식 날짜 가져오기
-    d3.json(KR_DateFormat_URL).then(locale => {
-      // data 가공
-      d3.timeFormatDefaultLocale(locale);
-      const dateParse = d3.timeParse('%Y.%m');
+    formatDateLocale();
+    requestEnergyData();
+  }, []);
+
+  useEffect(() => {
+    if (!energyData) {
+      return;
+    }
+
+    const currentElement = ref.current;
+    const margin = { top: 40, right: 40, bottom: 20, left: 180 };
+    const width = currentElement.offsetWidth;
+    const height = currentElement.offsetHeight - margin.top - margin.bottom;
+
+    if (chartType) {
+      margin.right = 0;
+      margin.left = margin.left / 3 + 20;
+    }
+
+    // x축, y축 정의
+    const x = d3.scaleTime().range([margin.left, width - margin.right]);
+    const elecY = d3.scaleLinear().range([height - margin.bottom, margin.top]);
+    const gasY = d3.scaleLinear().range([height - margin.bottom, margin.top]);
+    const waterY = d3.scaleLinear().range([height - margin.bottom, margin.top]);
+    const carbonY = d3.scaleLinear().range([height - margin.bottom, margin.top]);
+
+    x.domain(d3.extent(energyData, (data) => data.date));
+    carbonY.domain([0, d3.max(energyData, (data) => data.carbon)]).nice();
+    elecY.domain([0, d3.max(energyData, (data) => data.elec)]).nice();
+    gasY.domain([0, d3.max(energyData, (data) => data.gas)]).nice();
+    waterY.domain([0, d3.max(energyData, (data) => data.water)]).nice();
+
+    // Line generator 정의
+    const carbonLine = d3.line()
+      .curve(d3.curveBasis)
+      .x((data) => x(data.date))
+      .y((data) => carbonY(data.carbon));
+
+    const elecLine = d3.line()
+      .curve(d3.curveBasis)
+      .x((data) => x(data.date))
+      .y((data) => elecY(data.elec));
+
+    const gasLine = d3.line()
+      .curve(d3.curveBasis) 
+      .x((data) => x(data.date))
+      .y((data) => gasY(data.gas));
+
+    const waterLine = d3.line()
+      .curve(d3.curveBasis)
+      .x((data) => x(data.date))
+      .y((data) => waterY(data.water));
+
+    // Axis 정의
+    const xAxis = (g) => {
+      g.attr('transform', `translate(0, ${height - margin.bottom})`).call(
+        d3.axisBottom(x).ticks(width / 24)
+      );
+    };
+
+    const carbonAxis = (g) => {
+      g.attr('transform', `translate(${width - margin.right}, 0)`).call(
+        d3.axisRight(carbonY)
+      );
+    }
+
+    const elecAxis = (g) => {
+      g.attr('transform', `translate(${margin.left}, 0)`).call(
+        d3.axisLeft(elecY)
+      );
+    };
     
-      const energyData = data.map(({ date, energy }) => ({
-        date: dateParse(date),
-        elec: energy[0],
-        gas: energy[1],
-        water: energy[2],
-      }));
+    const gasAxis = (g) => {
+      g.attr('transform', `translate(${margin.left / 3 * 2}, 0)`).call(
+        d3.axisLeft(gasY)
+      );
+    };
 
-      // x축, y축 정의
-      const x = d3.scaleTime().range([margin.left, width - margin.right]);
-      const elecY = d3.scaleLinear().range([height - margin.bottom, margin.top]);
-      const gasY = d3.scaleLinear().range([height - margin.bottom, margin.top]);
-      const waterY = d3.scaleLinear().range([height - margin.bottom, margin.top]);
+    const waterAxis = (g) => {
+      g.attr('transform', `translate(${margin.left / 3}, 0)`).call(
+        d3.axisLeft(waterY)
+      );
+    };
 
-      x.domain(d3.extent(energyData, (data) => data.date));
-      elecY.domain([0, d3.max(energyData, (data) => data.elec)]).nice();
-      gasY.domain([0, d3.max(energyData, (data) => data.gas)]).nice();
-      waterY.domain([0, d3.max(energyData, (data) => data.water)]).nice();
-
-      // Line generator 정의
-      const elecLine = d3.line()
-        .x((data) => x(data.date))
-        .y((data) => elecY(data.elec));
-
-      const gasLine = d3.line()
-        .x((data) => x(data.date))
-        .y((data) => gasY(data.gas));
-
-      const waterLine = d3.line()
-        .x((data) => x(data.date))
-        .y((data) => waterY(data.water));
-
-      // Axis 정의
-      const xAxis = (g) => {
-        g.attr('transform', `translate(0, ${height - margin.bottom})`).call(
-          d3.axisBottom(x).ticks(width / 80)
-        );
-      };
-
-      const elecAxis = (g) => {
-        g.attr('transform', `translate(${margin.left}, 0)`).call(
-          d3.axisLeft(elecY)
-        );
-      };
-
-      const gasAxis = (g) => {
-        g.attr('transform', `translate(${margin.left / 3 * 2}, 0)`).call(
-          d3.axisLeft(gasY)
-        );
-      };
-
-      const waterAxis = (g) => {
-        g.attr('transform', `translate(${margin.left / 3}, 0)`).call(
-          d3.axisLeft(waterY)
-        );
-      };
-
-      // 차트 업데이트
-      const updateChart = (axises, labels, lineItems) => {
-        // svg 추가 및 viewBox 지정
-        const documentElement = d3
-          .select(currentElement)
-          .call((g) => g.select('svg').remove()) 
-          .append('svg') 
-          .attr('viewBox', `0, 0, ${width}, ${height}`); 
-        
-        // 차트가 하나일 시 y축 axise 위치 수정
-        if (chartType) {
-          axises[1] = (g) => {
-            g.attr('transform', `translate(${margin.left}, 0)`).call(
-              d3.axisLeft(yItems[chartType - 1])
-            );
-          };
-        }
-
-        // axise 추가
-        axises.forEach(axis => {
-          documentElement.append('g')
-            .call(axis)
-            .attr('font-size', '0.7em');
-        });
-  
-        // label 추가
-        labels.forEach((label, i) => {
-          documentElement.append('text')
-          .attr('transform', `translate(${margin.left / 3 * (3 - i)}, ${margin.top / 3})`)
-          .style('text-anchor', 'end')
-          .attr('font-size', '1em')
-          .text(label);
-        });
-  
-        // line chart 추가
-        lineItems.forEach((line, i) => {
-          documentElement.append('path')
-            .datum(energyData)
-            .attr('fill', 'none')
-            .attr('stroke', !chartType 
-              ? Legent_Labels[i + 1].color 
-              : Legent_Labels[chartType].color)
-            .attr('stroke-width', 4)
-            .attr('stroke-linejoin', 'round')
-            .attr('stroke-linecap', 'round')
-            .attr('d', line(energyData));
-        });
+    // 차트 업데이트
+    const updateChart = (axises, labels, lineItems) => {
+      // svg 추가 및 viewBox 지정
+      const svgElement = d3
+        .select(currentElement)
+        .call((g) => g.select('svg').remove()) 
+        .append('svg') 
+        .attr('viewBox', `0, 0, ${width * 1.05}, ${height}`)
+      
+      // 차트가 하나일 시 y축 axise 위치 수정
+      if (chartType) {
+        axises[1] = (g) => {
+          g.attr('transform', `translate(${margin.left}, 0)`).call(
+            d3.axisLeft(yItems[chartType - 1])
+          );
+        };
       }
 
-      const yItems = [elecY, gasY, waterY];
-      const axises = [xAxis, elecAxis, gasAxis, waterAxis];
-      const lineItems = [elecLine, gasLine, waterLine];
-      const labels = ['전기', '가스', '수도'];
+      // axise 추가
+      axises.forEach(axis => {
+        svgElement.append('g')
+          .call(axis)
+          .attr('font-size', '0.7em');
+      });
 
-      if (!chartType) {
-        updateChart(axises, labels, lineItems);
-      } else {
-        updateChart(
-          [axises[0], axises[chartType]], 
-          [labels[chartType - 1]], 
-          [lineItems[chartType - 1]
-        ]);
-      }
-    })
-  });
+      // label 추가
+      labels.forEach((label, i) => {
+        svgElement.append('text')
+        .attr('transform', `translate(${
+          !chartType && !i 
+            ? width 
+            : margin.left / 3 * (4 - i)
+          }, ${margin.top / 3})`)
+        .style('text-anchor', 'end')
+        .attr('font-size', '1em')
+        .attr('font-weight', 700)
+        .text(label);
+      });
+
+      // line chart 추가
+      lineItems.forEach((line, i) => {
+        svgElement.append('path')
+          .datum(energyData)
+          .attr('fill', 'none')
+          .attr('stroke', !chartType 
+            ? Legent_Labels[i].color 
+            : Legent_Labels[chartType - 1].color)
+          .attr('stroke-width', 2)
+          .attr('stroke-linejoin', 'round')
+          .attr('stroke-linecap', 'round')
+          .attr('d', line(energyData));
+      });
+    }
+
+    const yItems = [carbonY, elecY, gasY, waterY];
+    const axises = [xAxis, carbonAxis, elecAxis, gasAxis, waterAxis];
+    const lineItems = [carbonLine, elecLine, gasLine, waterLine];
+    const labels = ['탄소', '전기', '가스', '수도'];
+
+    if (!chartType) {
+      updateChart(axises, labels, lineItems);
+    } else {
+      updateChart(
+        [axises[0], axises[chartType]], 
+        [labels[chartType - 1]], 
+        [lineItems[chartType - 1]
+      ]);
+    }
+  }, [energyData, chartType]);
 
   const handleSelectChange = (e) => {
     setChartType(+e.target.value);
@@ -187,19 +229,22 @@ export default function EnergyChart() {
 
   return (
     <ChartWrapper ref={ref}>
-      <ChartSelect onChange={handleSelectChange}>
-        <option value="0">전체</option>
-        <option value="1">전기 사용량</option>
-        <option value="2">가스 사용량</option>
-        <option value="3">수도 사용량</option>
-      </ChartSelect>
-      <ChartLegendWrapper>
-        {Legent_Labels.map(({ label, color }) => (
-          <ChartLegendItem key={label} color={color}>
-            <span>●</span> {label}
-          </ChartLegendItem>
-        ))}
-      </ChartLegendWrapper>
+      <ChartHeader>
+        <ChartSelect onChange={handleSelectChange}>
+          <option value="0">전체</option>
+          <option value="1">탄소 배출량</option>
+          <option value="2">전기 사용량</option>
+          <option value="3">가스 사용량</option>
+          <option value="4">수도 사용량</option>
+        </ChartSelect>
+        <ChartLegendWrapper>
+          {Legent_Labels.map(({ label, color }) => (
+            <ChartLegendItem key={label} color={color}>
+              <span>●</span> {label}
+            </ChartLegendItem>
+          ))}
+        </ChartLegendWrapper>
+      </ChartHeader>
     </ChartWrapper>
   );
 }
