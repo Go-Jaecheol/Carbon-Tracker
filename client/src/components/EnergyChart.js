@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 import styled from 'styled-components';
 
+import { getHousingEnergyUsage } from '../api/index';
+
 import { data } from './data';
 
 const ChartWrapper = styled.div`

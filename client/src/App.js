@@ -1,10 +1,14 @@
 import './App.css';
 import EnergyChart from './components/EnergyChart';
+import Header from './components/Header';
+import MapArea from './components/MapArea';
 
 function App() {
   return (
     <div className="App">
-      <EnergyChart></EnergyChart>
+      <Header />
+      <EnergyChart />
+      <MapArea />
     </div>
   );
 }

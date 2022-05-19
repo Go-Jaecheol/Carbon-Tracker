@@ -24,9 +24,9 @@ public class ApartmentController {
     }
 
     @GetMapping("/aptListAll")
-    public void aptListApi() throws Exception {
+    public String aptListApi() throws Exception {
         log.info("대구시 전체 공동주택 단지 목록 조회 요청");
-        apartmentService.aptListAll();
+        return apartmentService.aptListAll();
     }
 
     @PostMapping("/aptEnergy")
