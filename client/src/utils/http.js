@@ -19,7 +19,7 @@ const request = async ({
         headers: new window.Headers(headers)
     }
 
-    if(body) config.body = body;
+    if(body) config.body = JSON.stringify(body);
 
     const response = await fetch(url, config);
 
