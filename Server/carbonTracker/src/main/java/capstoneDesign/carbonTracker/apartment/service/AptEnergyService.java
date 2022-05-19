@@ -48,16 +48,16 @@ public class AptEnergyService {
     @Value("${gasUsageKey}")
     private String gasUsageKey;
 
+    private int noneCount = 0;
+
     private final Map<String, String> sigunguCodeMap = new HashMap<>();
 
     private final KafkaTemplate<String, JSONObject> kafkaTemplate;
     private final AptEnergyRepository aptEnergyRepository;
     private final AptListRepository aptListRepository;
 
-    // 주소 결과를 얻지 못한 경우 check
-    private int noneCount = 0;
-
     public String aptEnergy(AptEnergyRequest aptEnergyRequest) throws Exception {
+        log.info("aptEnergy(), 단지코드: {}, 발생년월: {}", aptEnergyRequest.getCode(), aptEnergyRequest.getDate());
         String reqBuilder = aptEnergyUrl +
                 "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptEnergyKey + /*Service Key*/
                 "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getCode()), "UTF-8") + /*단지코드*/
@@ -68,6 +68,7 @@ public class AptEnergyService {
     }
 
     public String aptEnergyAll(AptEnergyRequest aptEnergyRequest) throws Exception {
+        log.info("aptEnergyAll(), 단지코드: {}", aptEnergyRequest.getCode());
         String topic = "energy";
         String[] date = {"202001","202002","202003","202004","202005","202006","202007","202008","202009","202010","202111","202112","202101","202102","202103","202104","202105","202106","202107","202108","202109","202110","202111","202112"};
         // 반환할 결과 JSON 배열
