@@ -71,6 +71,7 @@ public class AptEnergyService {
         log.info("aptEnergyAll(), 단지코드: {}", aptEnergyRequest.getCode());
         String topic = "energy";
         String[] date = {"202001","202002","202003","202004","202005","202006","202007","202008","202009","202010","202111","202112","202101","202102","202103","202104","202105","202106","202107","202108","202109","202110","202111","202112"};
+
         // 반환할 결과 JSON 배열
         JSONArray resultArray = new JSONArray();
         initSigunguCodeMap();
@@ -107,15 +108,14 @@ public class AptEnergyService {
                 // parsing 결과 jsonObject에 추가하기 위해 파라미터로 보내고, 반환 받음
                 jsonObject = getEnergyUsage(urlBuilder, jsonObject);
 
-                // 도로명주소, 법정동코드를 받아오기 위해 단지코드로 단지 정보 조회
+                // 법정동주소, 법정동코드를 받아오기 위해 단지코드로 단지 정보 조회
                 Optional<AptListResponse> aptListResponse = aptListRepository.findByKaptCode(kaptCode);
                 AptListResponse res = aptListResponse.orElseThrow(IllegalArgumentException::new);
 
-                String doroJuso = res.getDoroJuso();
-                String bjdCD = res.getBjdCode();
-                String bjdongCode = bjdCD.substring(5);
+                String BjdJuso = res.getBjdJuso();
+                String bjdongCode = res.getBjdCode().substring(5);
 
-                String[] tokens = doroJuso.split(" ");
+                String[] tokens = BjdJuso.split(" ");
 
                 String bunji;
 
@@ -137,6 +137,7 @@ public class AptEnergyService {
                         "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
                         "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
 
+                log.info(gasUrlBuilder);
                 jsonObject = getOneUsage(gasUrlBuilder, jsonObject, "hgas");
 
                 if (jsonObject.get(("helect")).equals(0)) {
@@ -161,14 +162,12 @@ public class AptEnergyService {
                 // Kafka로 JSON 객체 produce
                 log.info(String.format("Produce message : %s", jsonObject));
                 kafkaTemplate.send(topic, jsonObject);
+                i++;
             }
 
             // TODO ES로부터 단지코드를 이용해 도로명주소와 법정동코드를 조회해야 함
-            // String doroJuso = "대구광역시 중구 동인동1가 33-1 동인시티타운";
-//            String doroJuso2 = "대구광역시 달성군 화원읍 구라리 1734-1 청구청산맨션";
-            // String bjdCD = "2711010100";
+
             resultArray.add(jsonObject);
-            i++;
         }
         return resultArray.toJSONString();
     }
