@@ -46,6 +46,7 @@ public class AptListService {
     private final AptListRepository aptListRepository;
 
     public String aptLists(AptListRequest aptListRequest) throws Exception {
+        log.info("aptLists(), 시도코드: {}", aptListRequest.getCode());
         String reqBuilder = aptListUrl +
                 "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptListKey + /*Service Key*/
                 "&" + URLEncoder.encode("sidoCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCode()), "UTF-8") + /*시도코드*/
@@ -59,6 +60,7 @@ public class AptListService {
     }
 
     public String aptListUpdate() throws Exception {
+        log.info("aptListUpdate()");
         // API 호출 결과가 없을 때까지 단지를 1개씩 받아 좌표 변환을 수행
         String topic = "apt";
         JSONArray resultArray = new JSONArray();
@@ -109,6 +111,7 @@ public class AptListService {
     }
 
     public List<AptListResponse> aptListAll() throws Exception {
+        log.info("aptListAll()");
         return aptListRepository.findAll().getContent();
     }
 
