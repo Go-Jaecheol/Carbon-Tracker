@@ -1,6 +1,10 @@
 package capstoneDesign.carbonTracker.apartment.service;
 
 import capstoneDesign.carbonTracker.apartment.dto.AptEnergyRequest;
+import capstoneDesign.carbonTracker.apartment.dto.AptEnergyResponse;
+import capstoneDesign.carbonTracker.apartment.dto.AptListResponse;
+import capstoneDesign.carbonTracker.apartment.repository.AptEnergyRepository;
+import capstoneDesign.carbonTracker.apartment.repository.AptListRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.simple.JSONArray;
@@ -23,6 +27,7 @@ import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -46,6 +51,8 @@ public class AptEnergyService {
     private final Map<String, String> sigunguCodeMap = new HashMap<>();
 
     private final KafkaTemplate<String, JSONObject> kafkaTemplate;
+    private final AptEnergyRepository aptEnergyRepository;
+    private final AptListRepository aptListRepository;
 
     // 주소 결과를 얻지 못한 경우 check
     private int noneCount = 0;
@@ -69,52 +76,59 @@ public class AptEnergyService {
 
         int i = 0;
         while(i < date.length) {
-            // 특정 단지 코드에 대해 202001 ~ 202112까지의 에너지 사용량을 구하는 API
-            String urlBuilder = aptEnergyUrl +
-                    "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptEnergyKey + /*Service Key*/
-                    "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getCode()), "UTF-8") + /*단지코드*/
-                    "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*발생년월*/
-
+            String kaptCode = String.valueOf(aptEnergyRequest.getCode());
             // JSON 배열 반환 형태 생성
             JSONObject jsonObject = new JSONObject();
-            jsonObject.put("kaptCode", String.valueOf(aptEnergyRequest.getCode()));
-            jsonObject.put("date", date[i]);
-            // parsing 결과 jsonObject에 추가하기 위해 파라미터로 보내고, 반환 받음
-            jsonObject = getEnergyUsage(urlBuilder, jsonObject);
+            // 단지코드와 발생년월로 조회
+            Optional<AptEnergyResponse> aptEnergyResponse = aptEnergyRepository.findByKaptCodeAndDate(kaptCode, date[i]);
+            // 값이 이미 존재하면 바로 jsonObject에 추가
+            if(aptEnergyResponse.isPresent()) {
+                AptEnergyResponse res = aptEnergyResponse.get();
+                jsonObject.put("kaptCode", res.getKaptCode());
+                jsonObject.put("date", res.getDate());
+                jsonObject.put("helect", res.getHelect());
+                jsonObject.put("hgas", res.getHgas());
+                jsonObject.put("hwaterCool", res.getHwaterCool());
+                jsonObject.put("carbonEnergy", res.getCarbonEnergy());
 
-            // TODO ES로부터 단지코드를 이용해 도로명주소와 법정동코드를 조회해야 함
-            String doroJuso = "대구광역시 중구 동인동1가 33-1 동인시티타운";
-//            String doroJuso2 = "대구광역시 달성군 화원읍 구라리 1734-1 청구청산맨션";
-            String bjdCD = "2711010100";
-            String bjdongCode = bjdCD.substring(5);
+                log.info(String.valueOf(jsonObject));
+            } else {
+                // 없으면 공공데이터 API 호출해서 jsonObject에 추가
+                log.info("저장된 정보가 없습니다.");
+                // 특정 단지 코드에 대해 202001 ~ 202112까지의 에너지 사용량을 구하는 API
+                String urlBuilder = aptEnergyUrl +
+                        "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptEnergyKey + /*Service Key*/
+                        "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getCode()), "UTF-8") + /*단지코드*/
+                        "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*발생년월*/
 
-            String[] tokens = doroJuso.split(" ");
+                jsonObject.put("kaptCode", kaptCode);
+                jsonObject.put("date", date[i]);
+                // parsing 결과 jsonObject에 추가하기 위해 파라미터로 보내고, 반환 받음
+                jsonObject = getEnergyUsage(urlBuilder, jsonObject);
 
-            String bunji;
+                // 도로명주소, 법정동코드를 받아오기 위해 단지코드로 단지 정보 조회
+                Optional<AptListResponse> aptListResponse = aptListRepository.findByKaptCode(kaptCode);
+                AptListResponse res = aptListResponse.orElseThrow(IllegalArgumentException::new);
 
-            if (tokens[2].charAt(tokens[2].length() - 1) == '군') bunji = tokens[4];
-            else bunji = tokens[3];
+                String doroJuso = res.getDoroJuso();
+                String bjdCD = res.getBjdCode();
+                String bjdongCode = bjdCD.substring(5);
 
-            String sigunguCode = sigunguCodeMap.get(tokens[1]);
-            String[] tmp = bunji.split("-");
-            String bun = "0".repeat(4 - tmp[0].length()) + tmp[0];
-            String ji = (tmp.length == 1 ? "0000" : "0".repeat(4 - tmp[1].length()) + tmp[1]);
+                String[] tokens = doroJuso.split(" ");
 
-            log.info("시군구코드 : {}, 법정동코드: {}, 번: {}, 지: {}", sigunguCode, bjdongCode, bun, ji);
+                String bunji;
 
-            // 국토교통부_건물에너지정보_서비스 사용
-            String gasUrlBuilder = gasUsageUrl +
-                    "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + gasUsageKey + /*Service Key*/
-                    "&" + URLEncoder.encode("sigunguCd", "UTF-8") + "=" + URLEncoder.encode(sigunguCode, "UTF-8") + /*시군구코드*/
-                    "&" + URLEncoder.encode("bjdongCd", "UTF-8") + "=" + URLEncoder.encode(bjdongCode, "UTF-8") + /*법정동코드*/
-                    "&" + URLEncoder.encode("bun", "UTF-8") + "=" + URLEncoder.encode(bun, "UTF-8") + /*번*/
-                    "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
-                    "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
+                if (tokens[2].charAt(tokens[2].length() - 1) == '군') bunji = tokens[4];
+                else bunji = tokens[3];
 
-            jsonObject = getOneUsage(gasUrlBuilder, jsonObject, "hgas");
+                String sigunguCode = sigunguCodeMap.get(tokens[1]);
+                String[] tmp = bunji.split("-");
+                String bun = "0".repeat(4 - tmp[0].length()) + tmp[0];
+                String ji = (tmp.length == 1 ? "0000" : "0".repeat(4 - tmp[1].length()) + tmp[1]);
 
-            if (jsonObject.get(("helect")).equals(0)) {
-                String electUrlBuilder = electUsageUrl +
+                log.info("시군구코드 : {}, 법정동코드: {}, 번: {}, 지: {}", sigunguCode, bjdongCode, bun, ji);
+                // 국토교통부_건물에너지정보_서비스 사용
+                String gasUrlBuilder = gasUsageUrl +
                         "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + gasUsageKey + /*Service Key*/
                         "&" + URLEncoder.encode("sigunguCd", "UTF-8") + "=" + URLEncoder.encode(sigunguCode, "UTF-8") + /*시군구코드*/
                         "&" + URLEncoder.encode("bjdongCd", "UTF-8") + "=" + URLEncoder.encode(bjdongCode, "UTF-8") + /*법정동코드*/
@@ -122,20 +136,36 @@ public class AptEnergyService {
                         "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
                         "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
 
-                jsonObject = getOneUsage(electUrlBuilder, jsonObject, "helect");
+                jsonObject = getOneUsage(gasUrlBuilder, jsonObject, "hgas");
+
+                if (jsonObject.get(("helect")).equals(0)) {
+                    String electUrlBuilder = electUsageUrl +
+                            "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + gasUsageKey + /*Service Key*/
+                            "&" + URLEncoder.encode("sigunguCd", "UTF-8") + "=" + URLEncoder.encode(sigunguCode, "UTF-8") + /*시군구코드*/
+                            "&" + URLEncoder.encode("bjdongCd", "UTF-8") + "=" + URLEncoder.encode(bjdongCode, "UTF-8") + /*법정동코드*/
+                            "&" + URLEncoder.encode("bun", "UTF-8") + "=" + URLEncoder.encode(bun, "UTF-8") + /*번*/
+                            "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
+                            "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
+
+                    jsonObject = getOneUsage(electUrlBuilder, jsonObject, "helect");
+                }
+
+                // 탄소 사용량 계산 및 추가
+                int helect = (int) (Double.parseDouble(Objects.toString(jsonObject.get("helect"))) * 0.4663);
+                int hgas = (int) (Double.parseDouble(Objects.toString(jsonObject.get("hgas"))) * 2.22);
+                int hwaterCool = (int) (Double.parseDouble(Objects.toString(jsonObject.get("hwaterCool"))) * 0.3332);
+
+                jsonObject.put("carbonEnergy", helect + hgas + hwaterCool);
+
+                // Kafka로 JSON 객체 produce
+                log.info(String.format("Produce message : %s", jsonObject));
+                kafkaTemplate.send(topic, jsonObject);
             }
 
-            // 탄소 사용량 계산 및 추가
-            int helect = (int) (Double.parseDouble(Objects.toString(jsonObject.get("helect"))) * 0.4663);
-            int hgas = (int) (Double.parseDouble(Objects.toString(jsonObject.get("hgas"))) * 2.22);
-            int hwaterCool = (int) (Double.parseDouble(Objects.toString(jsonObject.get("hwaterCool"))) * 0.3332);
-
-            jsonObject.put("carbonEnergy", helect + hgas + hwaterCool);
-
-            // Kafka로 JSON 객체 produce
-            log.info(String.format("Produce message : %s", jsonObject));
-            // kafkaTemplate.send(topic, jsonObject);
-
+            // TODO ES로부터 단지코드를 이용해 도로명주소와 법정동코드를 조회해야 함
+            // String doroJuso = "대구광역시 중구 동인동1가 33-1 동인시티타운";
+//            String doroJuso2 = "대구광역시 달성군 화원읍 구라리 1734-1 청구청산맨션";
+            // String bjdCD = "2711010100";
             resultArray.add(jsonObject);
             i++;
         }
