@@ -1,40 +1,61 @@
-import React from "react";
-import { Map, MapMarker } from "react-kakao-maps-sdk";
+import React, { useEffect, useState } from "react";
+import { useRecoilState } from "recoil";
+import { Map, MapMarker, MarkerClusterer, useMap } from "react-kakao-maps-sdk";
 
-const daegu = { lat: 35.855, lng: 128.56 };
+import { housingState } from "../atoms";
+import { getHousingInformation } from "../controllers/map";
 
-const housingSample = [
-  {
-    name: "대구광역시 중구 동인동1가 33-1 동인시티타운",
-    lat: 35.8723582,
-    lng: 128.602149,
-  },
-  {
-    name: "대구광역시 중구 태평로3가 1 대구역센트럴자이아파트",
-    lat: 35.8756692,
-    lng: 128.5876,
-  },
-  {
-    name: "대구광역시 중구 남산동 437-1 인터불고코아시스",
-    lat: 35.864756,
-    lng: 128.588999,
-  },
-];
+const defaultPosition = {
+  center: { lat: 35.855, lng: 128.56 },
+  level: 7
+}
 
 export default function MapArea() {
+  const [housingInformation, setHousingInformation] = useRecoilState(housingState);
+
+  useEffect(() => {
+    async function setup() {
+      if(housingInformation.length) return;
+      const data = await getHousingInformation();
+      setHousingInformation([...data]);
+    }
+    setup();
+  });
+
+  const EventMarkerContainer = ({ housing }) => {
+    const { Ma, La, kaptName } = housing;
+    const map = useMap();
+    const [visible, setVisible] = useState(false);
+
+    return (
+      <MapMarker
+        position={{ lat: Ma, lng: La }}
+        onClick={(marker) => map.panTo(marker.getPosition())}
+        onMouseOver={() => setVisible(true)}
+        onMouseOut={() => setVisible(false)}
+      >
+        {visible && (<div>{kaptName}</div>)}
+      </MapMarker>
+    )
+  }
+ 
   return (
     <Map
-      center={{ ...daegu }}
+      center={defaultPosition.center}
       style={{ width: "100%", height: "100vh" }}
-      level={7}
+      level={defaultPosition.level}
     >
-      {housingSample.map(({ name, lat, lng }) => (
-        <MapMarker
-          key={name}
-          position={{ lat, lng }}
-          onClick={() => console.log(name)}
-        />
-      ))}
+      <MarkerClusterer
+        averageCenter={true}
+        minLevel={5}
+      >
+        {housingInformation.map(housing => (
+          <EventMarkerContainer 
+            key={housing.kaptCode} 
+            housing={housing}  
+          />
+        ))}
+      </MarkerClusterer>
     </Map>
   );
 }

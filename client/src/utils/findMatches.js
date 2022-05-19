@@ -34,12 +34,12 @@ function kmpSearch(H, N, pi) {
     return false;
 }
 
-export default function findMatches(target, candidates) {
+export default function findMatches(target, candidates, addressType = "bjdJuso") {
     const matched = [];
     const pi = getPartialMatch(target);
     for(let candidate of candidates) {
-        if(target.length > candidate.length) continue;
-        if(kmpSearch(candidate, target, pi)) matched.push(candidate);
+        if(target.length > candidate[addressType].length) continue;
+        if(kmpSearch(candidate[addressType], target, pi)) matched.push(candidate);
         if(matched.length === 5) break;
     }
     return matched;
