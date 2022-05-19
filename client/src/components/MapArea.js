@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { useRecoilState } from "recoil";
+import React, { useState } from "react";
+import { useRecoilValue } from "recoil";
 import { Map, MapMarker, MarkerClusterer, useMap } from "react-kakao-maps-sdk";
 
 import { housingState } from "../atoms";
-import { getHousingInformation } from "../controllers/map";
 
 const defaultPosition = {
   center: { lat: 35.855, lng: 128.56 },
@@ -11,16 +10,7 @@ const defaultPosition = {
 }
 
 export default function MapArea() {
-  const [housingInformation, setHousingInformation] = useRecoilState(housingState);
-
-  useEffect(() => {
-    async function setup() {
-      if(housingInformation.length) return;
-      const data = await getHousingInformation();
-      setHousingInformation([...data]);
-    }
-    setup();
-  });
+  const housingInformation = useRecoilValue(housingState);
 
   const EventMarkerContainer = ({ housing }) => {
     const { Ma, La, kaptName } = housing;
