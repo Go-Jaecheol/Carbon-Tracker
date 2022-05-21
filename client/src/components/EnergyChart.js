@@ -49,7 +49,7 @@ const legend = [
 
 const chartMargin = { top: 40, right: 40, bottom: 20, left: 180 };
 
-export default function EnergyChart() {
+export default function EnergyChart({ housingCode }) {
   const ref = useRef(null);
   const [energyData, setEnerygyData] = useState(null);
   const [chartItems, setChartItems] = useState(null);
@@ -65,13 +65,13 @@ export default function EnergyChart() {
     };
     // 에너지 데이터 요청
     const requestEnergyData = async () => {
-      const response = await getHousingEnergyUsage('A70283310');
+      const response = await getHousingEnergyUsage(housingCode);
       setEnerygyData(processEnergyData(response, dateParse));
     };
 
     formatDateLocale();
     requestEnergyData();
-  }, []);
+  }, [housingCode]);
 
   // 차트 생성
   useEffect(() => {
