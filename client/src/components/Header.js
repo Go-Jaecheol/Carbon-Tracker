@@ -35,14 +35,14 @@ const Title = styled.div`
     margin: 0 20px;
 `
 
-export default function Header() {
+export default function Header({loading = false}) {
     return(
         <HeaderContainer>
             <Logo>
                 <img src={logo} alt="컬러풀 대구 로고" />
                 <Title>Carbon Tracker</Title>
             </Logo>
-            <SearchBar />
+            {!loading && <SearchBar />}
         </HeaderContainer>
     )
 }
