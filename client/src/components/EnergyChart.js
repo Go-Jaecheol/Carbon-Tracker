@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import styled from 'styled-components';
 
 import { getHousingEnergyUsage } from '../api/index';
+import processEnergyData from '../utils/processEnergyData';
 
 const ChartWrapper = styled.div`
   width: 800px;
@@ -51,22 +52,16 @@ export default function EnergyChart() {
 
   useEffect(() => {
     let dateParse;
-    // 한국식 날짜 가져오기
+    // d3 한국식 날짜 설정
     const formatDateLocale = async () => {
       const locale = await d3.json(KR_DateFormat_URL);
       d3.timeFormatDefaultLocale(locale);
       dateParse = d3.timeParse('%Y%m');
     }
-    
+    // 에너지 데이터 요청
     const requestEnergyData = async () => {
       const response = await getHousingEnergyUsage('A70283310');
-      setEnerygyData(response.map((data) => ({
-        date: dateParse(data.date),
-        elec: data.helect,
-        gas: data.hgas,
-        water: data.hwaterCool,
-        carbon: data.carbonEnergy
-      })))
+      setEnerygyData(processEnergyData(response, dateParse));
     }
 
     formatDateLocale();
@@ -97,9 +92,9 @@ export default function EnergyChart() {
 
     x.domain(d3.extent(energyData, (data) => data.date));
     carbonY.domain([0, d3.max(energyData, (data) => data.carbon)]).nice();
-    elecY.domain([0, d3.max(energyData, (data) => data.elec)]).nice();
-    gasY.domain([0, d3.max(energyData, (data) => data.gas)]).nice();
-    waterY.domain([0, d3.max(energyData, (data) => data.water)]).nice();
+    elecY.domain([0, d3.max(energyData, (data) => data.helect)]).nice();
+    gasY.domain([0, d3.max(energyData, (data) => data.hgas)]).nice();
+    waterY.domain([0, d3.max(energyData, (data) => data.hwaterCool)]).nice();
 
     // Line generator 정의
     const carbonLine = d3.line()
@@ -110,17 +105,17 @@ export default function EnergyChart() {
     const elecLine = d3.line()
       .curve(d3.curveBasis)
       .x((data) => x(data.date))
-      .y((data) => elecY(data.elec));
+      .y((data) => elecY(data.helect));
 
     const gasLine = d3.line()
       .curve(d3.curveBasis) 
       .x((data) => x(data.date))
-      .y((data) => gasY(data.gas));
+      .y((data) => gasY(data.hgas));
 
     const waterLine = d3.line()
       .curve(d3.curveBasis)
       .x((data) => x(data.date))
-      .y((data) => waterY(data.water));
+      .y((data) => waterY(data.hwaterCool));
 
     // Axis 정의
     const xAxis = (g) => {
