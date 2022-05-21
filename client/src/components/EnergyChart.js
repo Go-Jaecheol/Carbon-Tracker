@@ -72,7 +72,7 @@ export default function EnergyChart() {
     if (!energyData) {
       return;
     }
-
+    console.log(energyData);
     const currentElement = ref.current;
     const margin = { top: 40, right: 40, bottom: 20, left: 180 };
     const width = currentElement.offsetWidth;

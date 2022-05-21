@@ -1,16 +1,25 @@
 export default function processEnergyData(data, dateParse) {
-  const energyData = data.map(({ date }, i) => {
-    const processed = { date: dateParse(date) };
+  console.log(data);
+  changeGasUnit(data);
 
+  return data.map(({ date }, i) => {
+    const processed = { date: dateParse(date) };
     for (const key of ['helect', 'hgas', 'hwaterCool']) {
       processed[key] = replaceEmptyData(data, key, i);
     }
     processed.carbon = getCarbonData(processed);
-
     return processed;
   });
+}
 
-  return energyData;
+function changeGasUnit(data) {
+  for (const obj of data) {
+    obj.hgas *= 0.09;
+  }
+}
+
+function getCarbonData({ helect, hgas, hwaterCool }) {
+  return Math.floor(helect * 0.4663 + hgas * 2.22 + hwaterCool * 0.332);
 }
 
 function replaceEmptyData(data, key, now) {
@@ -21,16 +30,10 @@ function replaceEmptyData(data, key, now) {
   let prev = now;
   let after = now;
 
-  let isOverPrev = false;
-  let isOverAfter = false;
-
   while (!+data[prev][key]) {
     prev--;
     if (prev < 0) {
       prev = data.length - 1;
-    }
-    if (!isOverPrev && Math.abs(prev - now) > 3) {
-      isOverPrev = true;
     }
   }
 
@@ -39,10 +42,12 @@ function replaceEmptyData(data, key, now) {
     if (after >= data.length) {
       after = 0;
     }
-    if (!isOverAfter && Math.abs(after - now) > 3) {
-      isOverAfter = true;
-    }
   }
+
+  console.log(prev, after);
+
+  let isOverPrev = Math.abs(prev - now) > 3;
+  let isOverAfter = Math.abs(after - now) > 3;
 
   // 하나가 4개월 이상 격차 발생 - 3개월 이내 데이터 리턴
   if (isOverPrev + isOverAfter === 1) {
@@ -64,8 +69,4 @@ function replaceEmptyData(data, key, now) {
 
   // 이전, 이후 데이터의 평균 리턴
   return Math.floor((+data[prev][key] + +data[after][key]) / 2);
-}
-
-function getCarbonData({ helect, hgas, hwaterCool }) {
-  return Math.floor(helect * 0.4663 + hgas * 2.22 + hwaterCool * 0.332);
 }
