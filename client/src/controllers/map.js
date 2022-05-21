@@ -12,6 +12,8 @@ export const getHousingInformation = async () => {
                 .catch((err) => reject(err));
             });
         }));
+        
+        console.log("done");
 
         return ret;
     } catch (error) {
