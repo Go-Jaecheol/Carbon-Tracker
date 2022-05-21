@@ -1,9 +1,8 @@
+import React from 'react';
 import { RecoilRoot } from 'recoil';
+
 import Header from './components/Header';
 import MapArea from './components/MapArea';
-
-import './App.css';
-import React from 'react';
 
 function App() {
   return (
