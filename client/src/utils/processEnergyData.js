@@ -1,72 +1,75 @@
-export default function processEnergyData(data, dateParse) {
-  console.log(data);
-  changeGasUnit(data);
+const SIZE = 24;
+const MID = Math.floor(SIZE / 2);
+const queue = [MID];
 
-  return data.map(({ date }, i) => {
-    const processed = { date: dateParse(date) };
-    for (const key of ['helect', 'hgas', 'hwaterCool']) {
-      processed[key] = replaceEmptyData(data, key, i);
-    }
-    processed.carbon = getCarbonData(processed);
-    return processed;
-  });
+export default function getProcessedEnergyData(data, dateParse) {
+  while (queue.length) {
+    const idx = queue.shift();
+    processEnergyData(data, idx, dateParse);
+  }
+  return data;
 }
 
-function changeGasUnit(data) {
-  for (const obj of data) {
-    obj.hgas *= 0.09;
+function processEnergyData(data, idx, dateParse) {
+  for (const key of ['helect', 'hgas', 'hwaterCool']) {
+    const value = +data[idx][key];
+    data[idx][key] = value ? value : replaceEmptyData(data, key, idx);
   }
+
+  data[idx].date = dateParse(data[idx].date);
+  data[idx].hgas *= 0.09;
+  data[idx].carbonEnergy = getCarbonData(data[idx]);
+
+  if (0 < idx && idx <= MID) {
+    queue.push(idx - 1);
+  }
+
+  if (MID <= idx && idx < SIZE - 1) {
+    queue.push(idx + 1);
+  }
+}
+
+function replaceEmptyData(data, key, idx) {
+  let prev = idx;
+  let after = idx;
+
+  while (0 <= prev && prev <= SIZE - 1 && !+data[prev][key]) {
+    prev--;
+  }
+
+  while (0 <= after && after <= SIZE - 1 && !+data[after][key]) {
+    after++;
+  }
+
+  return selectReplaceData(data, key, idx, prev, after);
+}
+
+function selectReplaceData(data, key, idx, prev, after) {
+  const prevGap = prev < 0 ? Infinity : idx - prev;
+  const afterGap = after >= SIZE ? Infinity : after - idx;
+
+  // 이전, 이후 달 모두 4개월 이상 격차 발생
+  if (afterGap > 3 && prevGap > 3) {
+    if (prevGap < afterGap) {
+      return +data[prev][key];
+    }
+    if (prevGap > afterGap) {
+      return +data[after][key];
+    }
+  }
+  // 이전 달이 4개월 이상 격차 발생
+  else if (prevGap > 3) {
+    return +data[after][key];
+  }
+  // 이후 달이 4개월 이상 격차 발생
+  else if (afterGap > 3) {
+    return +data[prev][key];
+  }
+
+  // 이전, 이후 달의 격차가 같거나 모두 3개월 이하 격차 발생
+  return Math.floor((+data[prev][key] + +data[after][key]) / 2);
 }
 
 function getCarbonData({ helect, hgas, hwaterCool }) {
   return Math.floor(helect * 0.4663 + hgas * 2.22 + hwaterCool * 0.332);
-}
-
-function replaceEmptyData(data, key, now) {
-  if (+data[now][key]) {
-    return +data[now][key];
-  }
-
-  let prev = now;
-  let after = now;
-
-  while (!+data[prev][key]) {
-    prev--;
-    if (prev < 0) {
-      prev = data.length - 1;
-    }
-  }
-
-  while (!+data[after][key]) {
-    after++;
-    if (after >= data.length) {
-      after = 0;
-    }
-  }
-
-  console.log(prev, after);
-
-  let isOverPrev = Math.abs(prev - now) > 3;
-  let isOverAfter = Math.abs(after - now) > 3;
-
-  // 하나가 4개월 이상 격차 발생 - 3개월 이내 데이터 리턴
-  if (isOverPrev + isOverAfter === 1) {
-    if (!isOverPrev) {
-      return +data[prev][key];
-    }
-    return +data[after][key];
-  }
-  
-  // 모두 4개월 이상 격차 발생 - 더 작은 격차 데이터 리턴
-  if (isOverPrev + isOverAfter === 2) {
-    if (isOverPrev < isOverAfter) {
-      return +data[prev][key];
-    }
-    if (isOverPrev > isOverAfter) {
-      return +data[after][key];
-    }
-  }
-
-  // 이전, 이후 데이터의 평균 리턴
-  return Math.floor((+data[prev][key] + +data[after][key]) / 2);
 }

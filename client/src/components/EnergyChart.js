@@ -72,7 +72,7 @@ export default function EnergyChart() {
     if (!energyData) {
       return;
     }
-    console.log(energyData);
+
     const currentElement = ref.current;
     const margin = { top: 40, right: 40, bottom: 20, left: 180 };
     const width = currentElement.offsetWidth;
@@ -91,7 +91,7 @@ export default function EnergyChart() {
     const carbonY = d3.scaleLinear().range([height - margin.bottom, margin.top]);
 
     x.domain(d3.extent(energyData, (data) => data.date));
-    carbonY.domain([0, d3.max(energyData, (data) => data.carbon)]).nice();
+    carbonY.domain([0, d3.max(energyData, (data) => data.carbonEnergy)]).nice();
     elecY.domain([0, d3.max(energyData, (data) => data.helect)]).nice();
     gasY.domain([0, d3.max(energyData, (data) => data.hgas)]).nice();
     waterY.domain([0, d3.max(energyData, (data) => data.hwaterCool)]).nice();
@@ -100,7 +100,7 @@ export default function EnergyChart() {
     const carbonLine = d3.line()
       .curve(d3.curveBasis)
       .x((data) => x(data.date))
-      .y((data) => carbonY(data.carbon));
+      .y((data) => carbonY(data.carbonEnergy));
 
     const elecLine = d3.line()
       .curve(d3.curveBasis)
