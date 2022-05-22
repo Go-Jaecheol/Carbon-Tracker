@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import styled from 'styled-components';
 
 import EnergyChart from './EnergyChart';
@@ -13,10 +13,12 @@ const ModalBackground = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(1.5px);
-  ${({ isOpen }) => (isOpen ? `display: flex` : `display: none`)}
+  background: rgba(255, 255, 255, 0.3);
+  ${({ isOpen }) => (
+    isOpen 
+    ? `display: flex` 
+    : `display: none`
+  )}
 `;
 
 const ModalWindow = styled.div`
@@ -60,29 +62,26 @@ const CloseButton = styled.button`
   }
 `;
 
-export default function Modal() {
-  const [isOpen, setOpen] = useState(true);
-
-  const handleClick = () => {
-    setOpen(false);
-  };
-
+export default function Modal({ housing, isOpen, close }) {
+  const { kaptCode, kaptName, doroJuso } = housing;
   return (
     <ModalBackground isOpen={isOpen}>
-      <ModalWindow>
-        <LeftWrapper>
-          <div>
-            <HousingName>침산화성파크드림아파트</HousingName>
-            <HousingAddress>대구 북구 성북로 70</HousingAddress>
-          </div>
-          <EnergyChart />
-        </LeftWrapper>
-        <RightWrapper>
-          <CloseButton onClick={handleClick}>✕</CloseButton>
-          {/* 현 시각 탄소 배출량 */}
-          {/* 올해 예상 탄소 포인트 */}
-        </RightWrapper>
-      </ModalWindow>
+      {isOpen && (
+        <ModalWindow>
+          <LeftWrapper>
+            <div>
+              <HousingName>{kaptName}</HousingName>
+              <HousingAddress>{doroJuso}</HousingAddress>
+            </div>
+            <EnergyChart housingCode={kaptCode} />
+          </LeftWrapper>
+          <RightWrapper>
+            <CloseButton onClick={close}>✕</CloseButton>
+            {/* 현 시각 탄소 배출량 */}
+            {/* 올해 예상 탄소 포인트 */}
+          </RightWrapper>
+        </ModalWindow>
+      )}
     </ModalBackground>
   );
 }

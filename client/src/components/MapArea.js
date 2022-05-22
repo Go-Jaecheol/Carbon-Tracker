@@ -3,6 +3,7 @@ import { useRecoilValue } from "recoil";
 import { Map, MapMarker, MarkerClusterer, useMap } from "react-kakao-maps-sdk";
 
 import { housingState } from "../atoms";
+import Modal from "./Modal";
 
 const defaultPosition = {
   center: { lat: 35.855, lng: 128.56 },
@@ -16,18 +17,29 @@ export default function MapArea() {
     const { Ma, La, kaptName } = housing;
     const map = useMap();
     const [visible, setVisible] = useState(false);
+    const [isModalOpen, setModalOpen] = useState(false);
 
     return (
-      <MapMarker
-        position={{ lat: Ma, lng: La }}
-        onClick={(marker) => map.panTo(marker.getPosition())}
-        onMouseOver={() => setVisible(true)}
-        onMouseOut={() => setVisible(false)}
-      >
-        {visible && (<div>{kaptName}</div>)}
-      </MapMarker>
-    )
-  }
+      <>
+        <Modal 
+          housing={housing} 
+          isOpen={isModalOpen} 
+          close={() => setModalOpen(false)} 
+        />
+        <MapMarker
+          position={{ lat: Ma, lng: La }}
+          onClick={(marker) => {
+            map.panTo(marker.getPosition());
+            setModalOpen(true);
+          }}
+          onMouseOver={() => setVisible(true)}
+          onMouseOut={() => setVisible(false)}
+        >
+          {visible && (<div>{kaptName}</div>)}
+        </MapMarker>
+      </>
+    );
+  };
  
   return (
     <Map

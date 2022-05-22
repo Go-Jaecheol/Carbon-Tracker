@@ -76,12 +76,13 @@ export default function EnergyChart({ housingCode }) {
   // 차트 생성
   useEffect(() => {
     if (!energyData) return;
+    console.log(energyData);
     setChartItems(createEnergyChart(energyData, ref.current, chartMargin));
   }, [energyData]);
 
   // 차트 업데이트
   useEffect(() => {
-    if (!chartItems) return;
+    if (!energyData || !chartItems) return;
 
     const oneChartItem = {};
 

@@ -1,16 +1,17 @@
 const SIZE = 24;
 const MID = Math.floor(SIZE / 2);
-const queue = [MID];
 
 export default function getProcessedEnergyData(data, dateParse) {
+  const queue = [MID];
   while (queue.length) {
-    const idx = queue.shift();
-    processEnergyData(data, idx, dateParse);
+    processEnergyData(data, dateParse, queue);
   }
   return data;
 }
 
-function processEnergyData(data, idx, dateParse) {
+function processEnergyData(data, dateParse, queue) {
+  const idx = queue.shift();
+  
   for (const key of ['helect', 'hgas', 'hwaterCool']) {
     const value = +data[idx][key];
     data[idx][key] = value ? value : replaceEmptyData(data, key, idx);
