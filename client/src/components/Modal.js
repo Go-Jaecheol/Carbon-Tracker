@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import * as d3 from 'd3';
 import styled from 'styled-components';
 
 import EnergyChart from './EnergyChart';
+import { getHousingEnergyUsage } from '../api/index';
+import processEnergyData from '../utils/processEnergyData';
 
 const ModalBackground = styled.div`
   width: 100%;
@@ -14,11 +17,6 @@ const ModalBackground = styled.div`
   justify-content: center;
   align-items: center;
   background: rgba(255, 255, 255, 0.3);
-  ${({ isOpen }) => (
-    isOpen 
-    ? `display: flex` 
-    : `display: none`
-  )}
 `;
 
 const ModalWindow = styled.div`
@@ -45,7 +43,7 @@ const HousingName = styled.h2`
 
 const HousingAddress = styled.p`
   margin-left: 30px;
-`
+`;
 
 const RightWrapper = styled.div``;
 
@@ -62,26 +60,48 @@ const CloseButton = styled.button`
   }
 `;
 
-export default function Modal({ housing, isOpen, close }) {
+const KR_DateFormat_URL =
+  'https://cdn.jsdelivr.net/npm/d3-time-format@3/locale/ko-KR.json';
+
+export default function Modal({ housing, close }) {
   const { kaptCode, kaptName, doroJuso } = housing;
+  const [energyData, setEnerygyData] = useState(null);
+
+  useEffect(() => {
+    // d3 한국식 날짜 설정
+    let dateParse;
+    const formatDateLocale = async () => {
+      const locale = await d3.json(KR_DateFormat_URL);
+      d3.timeFormatDefaultLocale(locale);
+      dateParse = d3.timeParse('%Y%m');
+    };
+
+    // 에너지 데이터 요청
+    const requestEnergyData = async () => {
+      const response = await getHousingEnergyUsage(kaptCode);
+      setEnerygyData(processEnergyData(response, dateParse));
+    };
+
+    formatDateLocale();
+    requestEnergyData();
+  }, [kaptCode]);
+
   return (
-    <ModalBackground isOpen={isOpen}>
-      {isOpen && (
-        <ModalWindow>
-          <LeftWrapper>
-            <div>
-              <HousingName>{kaptName}</HousingName>
-              <HousingAddress>{doroJuso}</HousingAddress>
-            </div>
-            <EnergyChart housingCode={kaptCode} />
-          </LeftWrapper>
-          <RightWrapper>
-            <CloseButton onClick={close}>✕</CloseButton>
-            {/* 현 시각 탄소 배출량 */}
-            {/* 올해 예상 탄소 포인트 */}
-          </RightWrapper>
-        </ModalWindow>
-      )}
+    <ModalBackground>
+      <ModalWindow>
+        <LeftWrapper>
+          <div>
+            <HousingName>{kaptName}</HousingName>
+            <HousingAddress>{doroJuso}</HousingAddress>
+          </div>
+          <EnergyChart energyData={energyData} />
+        </LeftWrapper>
+        <RightWrapper>
+          <CloseButton onClick={close}>✕</CloseButton>
+          {/* 현 시각 탄소 배출량 */}
+          {/* 올해 예상 탄소 포인트 */}
+        </RightWrapper>
+      </ModalWindow>
     </ModalBackground>
   );
 }

@@ -1,9 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import * as d3 from 'd3';
 import styled from 'styled-components';
 
-import { getHousingEnergyUsage } from '../api/index';
-import processEnergyData from '../utils/processEnergyData';
 import createEnergyChart from '../utils/createEnergyChart';
 import updateEnergyChart from '../utils/updateEnergyChart';
 
@@ -37,9 +34,6 @@ const ChartLegendItem = styled.div`
   ${({ color }) => `& span { color: ${color} }`}
 `;
 
-const KR_DateFormat_URL =
-  'https://cdn.jsdelivr.net/npm/d3-time-format@3/locale/ko-KR.json';
-
 const legend = [
   { label: '탄소', color: '#FB6B6B', unit: 'kgCO2eq' },
   { label: '전기', color: '#6956E5', unit: 'kWh' },
@@ -49,59 +43,36 @@ const legend = [
 
 const chartMargin = { top: 40, right: 40, bottom: 20, left: 180 };
 
-export default function EnergyChart({ housingCode }) {
+export default function EnergyChart({ energyData }) {
   const ref = useRef(null);
-  const [energyData, setEnerygyData] = useState(null);
   const [chartItems, setChartItems] = useState(null);
   const [chartType, setChartType] = useState(-1);
-
-  useEffect(() => {
-    let dateParse;
-    // d3 한국식 날짜 설정
-    const formatDateLocale = async () => {
-      const locale = await d3.json(KR_DateFormat_URL);
-      d3.timeFormatDefaultLocale(locale);
-      dateParse = d3.timeParse('%Y%m');
-    };
-    // 에너지 데이터 요청
-    const requestEnergyData = async () => {
-      const response = await getHousingEnergyUsage(housingCode);
-      setEnerygyData(processEnergyData(response, dateParse));
-    };
-
-    formatDateLocale();
-    requestEnergyData();
-  }, [housingCode]);
 
   // 차트 생성
   useEffect(() => {
     if (!energyData) return;
-    console.log(energyData);
+
     setChartItems(createEnergyChart(energyData, ref.current, chartMargin));
   }, [energyData]);
 
   // 차트 업데이트
   useEffect(() => {
-    if (!energyData || !chartItems) return;
+    if (!chartItems) return;
 
     const oneChartItem = {};
 
     if (chartType > -1) {
-      const { yItems, lineItems, axises} = chartItems;
+      const { yItems, lineItems, axises } = chartItems;
       oneChartItem.yItems = [yItems[chartType]];
       oneChartItem.lineItems = [lineItems[chartType]];
       oneChartItem.axises = [axises[0], axises[chartType + 1]];
     }
 
     updateEnergyChart(
-      energyData, 
-      ref.current, 
-      chartType === -1 
-        ? chartItems 
-        : oneChartItem, 
-      chartType === -1
-        ? legend
-        : [legend[chartType]], 
+      energyData,
+      ref.current,
+      chartType === -1 ? chartItems : oneChartItem,
+      chartType === -1 ? legend : [legend[chartType]],
       chartMargin
     );
   }, [energyData, chartItems, chartType]);
@@ -123,7 +94,8 @@ export default function EnergyChart({ housingCode }) {
         <ChartLegendWrapper>
           {legend.map(({ label, color, unit }, i) => (
             <ChartLegendItem key={label} color={color}>
-              <span>●</span> {label} {i ? '사용량' : '배출량'} <span>{unit}</span>
+              <span>●</span> {label} {i ? '사용량' : '배출량'}{' '}
+              <span>{unit}</span>
             </ChartLegendItem>
           ))}
         </ChartLegendWrapper>

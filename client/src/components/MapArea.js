@@ -21,11 +21,12 @@ export default function MapArea() {
 
     return (
       <>
-        <Modal 
-          housing={housing} 
-          isOpen={isModalOpen} 
-          close={() => setModalOpen(false)} 
-        />
+        {isModalOpen && (
+          <Modal 
+            housing={housing} 
+            close={() => setModalOpen(false)} 
+          />
+        )}
         <MapMarker
           position={{ lat: Ma, lng: La }}
           onClick={(marker) => {
