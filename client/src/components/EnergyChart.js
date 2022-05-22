@@ -51,7 +51,6 @@ export default function EnergyChart({ energyData }) {
   // 차트 생성
   useEffect(() => {
     if (!energyData) return;
-
     setChartItems(createEnergyChart(energyData, ref.current, chartMargin));
   }, [energyData]);
 

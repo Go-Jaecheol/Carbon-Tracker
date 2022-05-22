@@ -68,12 +68,11 @@ export default function Modal({ housing, close }) {
   const [energyData, setEnerygyData] = useState(null);
 
   useEffect(() => {
+    const dateParse = d3.timeParse('%Y%m');
     // d3 한국식 날짜 설정
-    let dateParse;
     const formatDateLocale = async () => {
       const locale = await d3.json(KR_DateFormat_URL);
       d3.timeFormatDefaultLocale(locale);
-      dateParse = d3.timeParse('%Y%m');
     };
 
     // 에너지 데이터 요청
@@ -82,8 +81,7 @@ export default function Modal({ housing, close }) {
       setEnerygyData(processEnergyData(response, dateParse));
     };
 
-    formatDateLocale();
-    requestEnergyData();
+    formatDateLocale().then(() => requestEnergyData());
   }, [kaptCode]);
 
   return (

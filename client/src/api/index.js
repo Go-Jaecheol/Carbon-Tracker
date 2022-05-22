@@ -7,12 +7,7 @@ export const getHousingInformation = async () => await get(baseURL + "/aptListAl
 
 // POST
 export const getHousingEnergyUsage = async (housingCode) => {
-    if (energyUsageCache[housingCode]) {
-        return energyUsageCache[housingCode];
-    }
-
     const body = { code: housingCode };
-
     const headers = { 'Content-Type': 'application/json' };
     
     const { status, data } = await post(
@@ -26,9 +21,5 @@ export const getHousingEnergyUsage = async (housingCode) => {
         return null;
     }
 
-    energyUsageCache[housingCode] = data;
-
     return data;
 }
-
-const energyUsageCache = {};
