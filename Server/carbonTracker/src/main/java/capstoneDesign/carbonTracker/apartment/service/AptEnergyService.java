@@ -119,7 +119,7 @@ public class AptEnergyService {
 
                 String bunji;
 
-                if (tokens[2].charAt(tokens[2].length() - 1) == '군') bunji = tokens[4];
+                if (tokens[1].charAt(tokens[1].length() - 1) == '군') bunji = tokens[4];
                 else bunji = tokens[3];
 
                 String sigunguCode = sigunguCodeMap.get(tokens[1]);
