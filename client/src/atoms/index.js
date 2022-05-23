@@ -20,3 +20,9 @@ export const housingState = atom({
         get: () => loadHousingCache()
     })
 });
+
+export const mapState = atom({
+    key: "mapState",
+    default: null,
+    dangerouslyAllowMutability: true
+})
