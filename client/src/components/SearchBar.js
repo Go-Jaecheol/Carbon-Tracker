@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { useRecoilValue } from "recoil";
 import styled from "styled-components";
 
-import { housingState } from "../atoms";
+import { housingState, mapState } from "../atoms";
 import findMatches from "../utils/findMatches";
+import { getKakaoLatLng } from "../utils/kakao";
 
 const SearchBarContainer = styled.div`
     position: relative;
@@ -45,15 +46,19 @@ const Suggestion = styled.div`
     &:hover{
         background-color: whitesmoke;
     }
+    &:focus {
+        background-color: whitesmoke;
+    }
 `
 
 let pending = null;
+const { kakao } = window;
 
 export default function SearchBar() {
     const [target, setTarget] = useState("");
     const [suggestion, setSuggestion] = useState([]);
-    const [focused, setFocused] = useState(false);
     const housingInformation = useRecoilValue(housingState);
+    const map = useRecoilValue(mapState);
 
     const handleChange = (event) => {
         setTarget(event.target.value);
@@ -64,19 +69,31 @@ export default function SearchBar() {
         }, 500);
     }
 
+    const handleClick = (info) => {
+        setTarget(info.bjdJuso);
+        setSuggestion([]);
+        map.setLevel(2);
+        map.setCenter(getKakaoLatLng(info.Ma, info.La));
+    }
+
     return (
         <SearchBarContainer>
             <span>🔎</span>
             <SearchInput 
                 value={target} 
-                style={(suggestion.length > 0 && focused ? {"borderRadius": "20px 20px 0 0", "borderBottomWidth": "0px"} : {})} 
+                style={(suggestion.length > 0 ? {"borderRadius": "20px 20px 0 0", "borderBottomWidth": "0px"} : {})} 
                 onChange={handleChange} 
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
             />
-            {suggestion.length > 0 && focused &&
+            {suggestion.length > 0 &&
             <SuggestionContainer>
-                {suggestion.map(name => <Suggestion key={name.bjdJuso}>{name.bjdJuso}</Suggestion>)}
+                {suggestion.map(info => 
+                    <Suggestion 
+                        key={info.bjdJuso}
+                        onClick={() => handleClick(info)}
+                    >
+                    {info.bjdJuso}
+                    </Suggestion>)
+                }
             </SuggestionContainer>
             }
         </SearchBarContainer>

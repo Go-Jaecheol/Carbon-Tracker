@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { useRecoilValue } from "recoil";
+import { useRecoilValue, useSetRecoilState } from "recoil";
 import { Map, MapMarker, MarkerClusterer, useMap } from "react-kakao-maps-sdk";
 
-import { housingState } from "../atoms";
+import { housingState, mapState } from "../atoms";
 import Modal from "./Modal";
 
 const defaultPosition = {
@@ -11,11 +11,12 @@ const defaultPosition = {
 }
 
 export default function MapArea() {
+  const setMap = useSetRecoilState(mapState);
   const housingInformation = useRecoilValue(housingState);
 
   const EventMarkerContainer = ({ housing }) => {
-    const { Ma, La, kaptName } = housing;
     const map = useMap();
+    const { Ma, La, kaptName } = housing;
     const [visible, setVisible] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
 
@@ -47,6 +48,7 @@ export default function MapArea() {
       center={defaultPosition.center}
       style={{ width: "100%", height: "100vh" }}
       level={defaultPosition.level}
+      onCreate={setMap}
     >
       <MarkerClusterer
         averageCenter={true}
@@ -55,7 +57,7 @@ export default function MapArea() {
         {housingInformation.map(housing => (
           <EventMarkerContainer 
             key={housing.kaptCode} 
-            housing={housing}  
+            housing={housing}
           />
         ))}
       </MarkerClusterer>

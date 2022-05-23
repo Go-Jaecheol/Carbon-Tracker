@@ -2,7 +2,7 @@ const { kakao } = window;
 
 const geocoder = new kakao.maps.services.Geocoder();
 
-export default function getCoordinate(address) {
+export const getCoordinate = (address) => {
     return new Promise((resolve, reject) => {
         geocoder.addressSearch(address, function(result, status) {
             // 정상적으로 검색이 완료됐으면 
@@ -18,4 +18,8 @@ export default function getCoordinate(address) {
             }
         });
     });
+}
+
+export const getKakaoLatLng = (lat, lng) => {
+    return new kakao.maps.LatLng(lat, lng);
 }

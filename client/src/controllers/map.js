@@ -1,21 +1,19 @@
 import * as API from "../api/index.js";
-import getCoordinate from "../utils/kakao/getCoordinate.js";
+import { getCoordinate } from "../utils/kakao.js";
 
 export const getHousingInformation = async () => {
     try {
         const { data } = await API.getHousingInformation();
         
-        const ret = await Promise.all(data.map(housing => {
+        let ret = await Promise.all(data.map(housing => {
             return new Promise((resolve, reject) => {
                 getCoordinate(housing.bjdJuso)
                 .then(coordinate => resolve({...housing, ...coordinate}))
                 .catch((err) => reject(err));
             });
         }));
-        
-        console.log("done");
 
-        return ret;
+        return ret.filter(elem => elem?.Ma);
     } catch (error) {
         console.log(error);
     }
