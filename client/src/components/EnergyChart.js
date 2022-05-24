@@ -27,10 +27,11 @@ const ChartSelect = styled.select`
 const ChartLegendWrapper = styled.div`
   display: flex;
   justify-content: flex-end;
+  margin-right: 20px;
 `;
 
 const ChartLegendItem = styled.div`
-  margin-left: 40px;
+  margin-left: 30px;
   ${({ color }) => `& span { color: ${color} }`}
 `;
 

@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import styled from 'styled-components';
 
 import EnergyChart from './EnergyChart';
+import EnergyTable from './EnergyTable';
 import { getHousingEnergyUsage } from '../api/index';
 import processEnergyData from '../utils/processEnergyData';
 
@@ -10,8 +11,7 @@ const ModalBackground = styled.div`
   width: 100%;
   height: 100%;
   position: absolute;
-  left: 0;
-  top: 0;
+  left: 0; top: 0;
   z-index: 1;
   display: flex;
   justify-content: center;
@@ -41,11 +41,24 @@ const HousingName = styled.h2`
   margin: 0 30px;
 `;
 
-const HousingAddress = styled.p`
-  margin-left: 30px;
+const HousingAddress = styled.div`
+  padding: 0 30px;
+  display: flex;
+  justify-content: space-between;
 `;
 
-const RightWrapper = styled.div``;
+const DetailButton = styled.div`
+  color: gray;
+  border-bottom: 1px solid white;
+  cursor: pointer;
+  &:hover {
+    color: black;
+    border-bottom: 1px solid;
+  }
+`;
+
+const RightWrapper = styled.div`
+`;
 
 const CloseButton = styled.button`
   width: 30px;
@@ -66,6 +79,7 @@ const KR_DateFormat_URL =
 export default function Modal({ housing, close }) {
   const { kaptCode, kaptName, doroJuso } = housing;
   const [energyData, setEnerygyData] = useState(null);
+  const [isShowTable, setShowTable] = useState(false);
 
   useEffect(() => {
     const dateParse = d3.timeParse('%Y%m');
@@ -86,20 +100,28 @@ export default function Modal({ housing, close }) {
 
   return (
     <ModalBackground>
-      <ModalWindow>
-        <LeftWrapper>
-          <div>
-            <HousingName>{kaptName}</HousingName>
-            <HousingAddress>{doroJuso}</HousingAddress>
-          </div>
-          <EnergyChart energyData={energyData} />
-        </LeftWrapper>
-        <RightWrapper>
-          <CloseButton onClick={close}>✕</CloseButton>
-          {/* 현 시각 탄소 배출량 */}
-          {/* 올해 예상 탄소 포인트 */}
-        </RightWrapper>
-      </ModalWindow>
+        <ModalWindow>
+          {isShowTable ? <EnergyTable /> : (
+          <>
+          <LeftWrapper>
+            <div>
+              <HousingName>{kaptName}</HousingName>
+              <HousingAddress>
+                <div>{doroJuso}</div>
+                <DetailButton onClick={() => setShowTable(true)}>
+                  자세히 보기
+                </DetailButton>
+              </HousingAddress>
+            </div>
+            <EnergyChart energyData={energyData} />
+          </LeftWrapper>
+          <RightWrapper>
+            <CloseButton onClick={close}>✕</CloseButton>
+            {/* 현 시각 탄소 배출량 */}
+            {/* 올해 예상 탄소 포인트 */}
+          </RightWrapper>
+          </>)}
+        </ModalWindow>
     </ModalBackground>
   );
 }

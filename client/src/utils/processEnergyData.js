@@ -2,32 +2,39 @@ const SIZE = 24;
 const MID = Math.floor(SIZE / 2);
 
 export default function getProcessedEnergyData(data, dateParse) {
+  const processEnergyData = () => {
+    const idx = queue.shift();
+    
+    for (const key of ['helect', 'hgas', 'hwaterCool']) {
+      const value = +data[idx][key];
+      data[idx][key] = value ? value : replaceEmptyData(data, key, idx);
+    }
+
+    processedData[idx] = {
+      ...data[idx],
+      date: dateParse(data[idx].date),
+      hgas: data[idx].hgas * 0.09,
+      carbonEnergy: getCarbonData(data[idx])
+    }
+    
+    if (0 < idx && idx <= MID) {
+      queue.push(idx - 1);
+    }
+
+    if (MID <= idx && idx < SIZE - 1) {
+      queue.push(idx + 1);
+    }
+  }
+  console.log(data);
   const queue = [MID];
+  const processedData = new Array(data.length).map(_ => { return {}});
+
   while (queue.length) {
     processEnergyData(data, dateParse, queue);
   }
-  return data;
-}
 
-function processEnergyData(data, dateParse, queue) {
-  const idx = queue.shift();
-  
-  for (const key of ['helect', 'hgas', 'hwaterCool']) {
-    const value = +data[idx][key];
-    data[idx][key] = value ? value : replaceEmptyData(data, key, idx);
-  }
-
-  data[idx].date = dateParse(data[idx].date);
-  data[idx].hgas *= 0.09;
-  data[idx].carbonEnergy = getCarbonData(data[idx]);
-
-  if (0 < idx && idx <= MID) {
-    queue.push(idx - 1);
-  }
-
-  if (MID <= idx && idx < SIZE - 1) {
-    queue.push(idx + 1);
-  }
+  console.log(processedData);
+  return processedData;
 }
 
 function replaceEmptyData(data, key, idx) {
