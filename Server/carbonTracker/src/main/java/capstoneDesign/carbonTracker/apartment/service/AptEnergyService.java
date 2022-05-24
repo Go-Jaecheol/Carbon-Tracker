@@ -138,7 +138,7 @@ public class AptEnergyService {
                         "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
 
                 log.info(gasUrlBuilder);
-                jsonObject = getOneUsage(gasUrlBuilder, jsonObject, "hgas");
+                jsonObject = getGasUsage(gasUrlBuilder, jsonObject);
 
                 if (jsonObject.get(("helect")).equals(0)) {
                     String electUrlBuilder = electUsageUrl +
@@ -149,7 +149,7 @@ public class AptEnergyService {
                             "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
                             "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
 
-                    jsonObject = getOneUsage(electUrlBuilder, jsonObject, "helect");
+                    jsonObject = getElectUsage(electUrlBuilder, jsonObject);
                 }
 
                 // 탄소 사용량 계산 및 추가
@@ -224,22 +224,45 @@ public class AptEnergyService {
 
     // private methods
 
-    private JSONObject getOneUsage(String reqBuilder, JSONObject jsonObject, String type) throws Exception {
-        Element eElement = initElement(initDocument(reqBuilder));
-
-        // 가스 사용량 태그 값 추출
-        String tmp = getTagValue("useQty", eElement);
+    private JSONObject getGasUsage(String reqBuilder, JSONObject jsonObject) throws Exception {
+        String tmp = getUsage(reqBuilder);
         int useQty;
+
+        if (tmp == null) useQty = 0;
+        else {
+            useQty = (int) (Double.parseDouble(tmp) * 0.09);
+            if (useQty < 0) useQty = 0;
+        }
+
+        log.info("{} 사용량: {}", "가스", useQty);
+
+        jsonObject.put("hgas", useQty);
+
+        return jsonObject;
+    }
+
+    private JSONObject getElectUsage(String reqBuilder, JSONObject jsonObject) throws Exception {
+        String tmp = getUsage(reqBuilder);
+        int useQty;
+
         if (tmp == null) useQty = 0;
         else {
             useQty = (int) Double.parseDouble(tmp);
+            if (useQty < 0) useQty = 0;
         }
-        // 각각 사용량 배열 형태가 아닌 key: value 형태로 바로 저장
-        jsonObject.put(type, useQty);
 
-        log.info("{} 사용량: {}", Objects.equals(type, "hgas") ? "가스" : "전기", useQty);
+        log.info("{} 사용량: {}", "전기", useQty);
+
+        jsonObject.put("helect", useQty);
 
         return jsonObject;
+    }
+
+    private String getUsage(String reqBuilder) throws Exception {
+        Element eElement = initElement(initDocument(reqBuilder));
+
+        // 사용량 태그 값 추출
+        return getTagValue("useQty", eElement);
     }
 
     private JSONObject getEnergyUsage(String reqBuilder, JSONObject jsonObject) throws Exception {
