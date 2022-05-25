@@ -2,35 +2,73 @@ const SIZE = 24;
 const MID = Math.floor(SIZE / 2);
 
 export default function getProcessedEnergyData(data, dateParse) {
+  const test = [];
+
+  for (const obj of data) {
+    test.push({ ...obj });
+  }
+
+  console.log(test);
+
+  const processEnergyData = () => {
+    const idx = queue.shift();
+
+    for (const key of ['helect', 'hgas', 'hwaterCool']) {
+      if (invalidEnergys.has(key)) {
+        continue;
+      }
+
+      const value = +data[idx][key];
+
+      if (!value) {
+        const replaceData = findReplaceData(data, key, idx);
+
+        // 2년치 에너지 사용량 모두 결측치 인 경우 예외 처리
+        if (typeof replaceData === 'string') {
+          data[idx][key] = 0;
+          invalidEnergys.add(replaceData);
+          continue;
+        }
+
+        data[idx][key] = replaceData;
+        continue;
+      }
+
+      data[idx][key] = value;
+    }
+
+    processedData[idx] = {
+      ...data[idx],
+      date: dateParse(data[idx].date),
+      carbonEnergy: getCarbonData(data[idx]),
+    };
+
+    if (0 < idx && idx <= MID) {
+      queue.push(idx - 1);
+    }
+
+    if (MID <= idx && idx < SIZE - 1) {
+      queue.push(idx + 1);
+    }
+  };
+
   const queue = [MID];
+  const processedData = new Array(data.length).map((_) => {
+    return {};
+  });
+  const invalidEnergys = new Set();
+
   while (queue.length) {
     processEnergyData(data, dateParse, queue);
   }
-  return data;
+
+  console.log(processedData);
+
+  return [processedData, invalidEnergys];
 }
 
-function processEnergyData(data, dateParse, queue) {
-  const idx = queue.shift();
-  
-  for (const key of ['helect', 'hgas', 'hwaterCool']) {
-    const value = +data[idx][key];
-    data[idx][key] = value ? value : replaceEmptyData(data, key, idx);
-  }
-
-  data[idx].date = dateParse(data[idx].date);
-  data[idx].hgas *= 0.09;
-  data[idx].carbonEnergy = getCarbonData(data[idx]);
-
-  if (0 < idx && idx <= MID) {
-    queue.push(idx - 1);
-  }
-
-  if (MID <= idx && idx < SIZE - 1) {
-    queue.push(idx + 1);
-  }
-}
-
-function replaceEmptyData(data, key, idx) {
+// 대체할 이전, 이후 데이터 찾기
+function findReplaceData(data, key, idx) {
   let prev = idx;
   let after = idx;
 
@@ -42,9 +80,15 @@ function replaceEmptyData(data, key, idx) {
     after++;
   }
 
+  // 2년치 에너지 사용량 모두 결측치인 경우
+  if (prev < 0 && after >= SIZE) {
+    return key;
+  }
+
   return selectReplaceData(data, key, idx, prev, after);
 }
 
+// 두 대체 데이터 중 가까운 데이터 선정 (또는 평균)
 function selectReplaceData(data, key, idx, prev, after) {
   const prevGap = prev < 0 ? Infinity : idx - prev;
   const afterGap = after >= SIZE ? Infinity : after - idx;
@@ -71,6 +115,7 @@ function selectReplaceData(data, key, idx, prev, after) {
   return Math.floor((+data[prev][key] + +data[after][key]) / 2);
 }
 
+// 탄소 배출량 계산
 function getCarbonData({ helect, hgas, hwaterCool }) {
   return Math.floor(helect * 0.4663 + hgas * 2.22 + hwaterCool * 0.332);
 }
