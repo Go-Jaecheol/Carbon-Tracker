@@ -1,7 +1,6 @@
 import * as d3 from 'd3';
 
-export default function createEnergyChart(energyData, currElement, margin) {
-  const energys = ['carbonEnergy', 'helect', 'hgas', 'hwaterCool'];
+export default function createEnergyChart(energyData, energyNames, currElement, margin) {
   const width = currElement.offsetWidth;
   const height = currElement.offsetHeight - margin.top - margin.bottom;
 
@@ -9,14 +8,14 @@ export default function createEnergyChart(energyData, currElement, margin) {
       .range([margin.left, width - margin.right])
       .domain(d3.extent(energyData, (data) => data.date));
 
-  const yItems = energys.map((energy) => {
+  const yItems = energyNames.map((energy) => {
     return d3.scaleLinear()
       .range([height - margin.bottom, margin.top])
       .domain([0, d3.max(energyData, (data) => data[energy])]).nice();
   })
 
   // line 정의
-  const lineItems = energys.map((energy, i) => {
+  const lineItems = energyNames.map((energy, i) => {
     return d3.line()
       .curve(d3.curveBasis)
       .x((data) => x(data.date))

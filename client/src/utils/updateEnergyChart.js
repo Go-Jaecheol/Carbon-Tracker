@@ -1,9 +1,8 @@
 import * as d3 from 'd3';
 
-export default function updateEnergyChart(data, currElement, chartItems, legend, margin) {
+export default function updateEnergyChart(data, currElement, chartItems, legends, margin) {
   const { yItems, lineItems, axises } = chartItems;
   const isChartOne = yItems.length === 1;
-
   const width = currElement.offsetWidth;
   const height = currElement.offsetHeight - margin.top - margin.bottom;
   
@@ -29,7 +28,7 @@ export default function updateEnergyChart(data, currElement, chartItems, legend,
   });
 
   // label 추가
-  legend.forEach(({ label }, i) => {
+  legends.forEach(({ label }, i) => {
     svgElement.append('text')
       .attr('transform', `translate(${
         !isChartOne && !i // 탄소 label 위치 결정
@@ -48,7 +47,7 @@ export default function updateEnergyChart(data, currElement, chartItems, legend,
     svgElement.append('path')
       .datum(data)
       .attr('fill', 'none')
-      .attr('stroke', legend[i].color)
+      .attr('stroke', legends[i].color)
       .attr('stroke-width', 2)
       .attr('stroke-linejoin', 'round')
       .attr('stroke-linecap', 'round')
