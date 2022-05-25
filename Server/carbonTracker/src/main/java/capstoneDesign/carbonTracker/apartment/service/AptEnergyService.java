@@ -21,13 +21,11 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -68,9 +66,10 @@ public class AptEnergyService {
     }
 
     public String aptEnergyAll(AptEnergyRequest aptEnergyRequest) throws Exception {
-        log.info("aptEnergyAll(), 단지코드: {}", aptEnergyRequest.getCode());
+        log.info("aptEnergyAll(), 단지코드: {}, 현재년월: {}", aptEnergyRequest.getCode(), aptEnergyRequest.getDate());
+
+        String[] date = initDates(aptEnergyRequest.getDate());
         String topic = "energy";
-        String[] date = {"202001","202002","202003","202004","202005","202006","202007","202008","202009","202010","202011","202012","202101","202102","202103","202104","202105","202106","202107","202108","202109","202110","202111","202112"};
 
         // 반환할 결과 JSON 배열
         JSONArray resultArray = new JSONArray();
@@ -129,26 +128,13 @@ public class AptEnergyService {
 
                 log.info("시군구코드 : {}, 법정동코드: {}, 번: {}, 지: {}", sigunguCode, bjdongCode, bun, ji);
                 // 국토교통부_건물에너지정보_서비스 사용
-                String gasUrlBuilder = gasUsageUrl +
-                        "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + gasUsageKey + /*Service Key*/
-                        "&" + URLEncoder.encode("sigunguCd", "UTF-8") + "=" + URLEncoder.encode(sigunguCode, "UTF-8") + /*시군구코드*/
-                        "&" + URLEncoder.encode("bjdongCd", "UTF-8") + "=" + URLEncoder.encode(bjdongCode, "UTF-8") + /*법정동코드*/
-                        "&" + URLEncoder.encode("bun", "UTF-8") + "=" + URLEncoder.encode(bun, "UTF-8") + /*번*/
-                        "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
-                        "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
+                String gasUrlBuilder = getOneUsageUrl(gasUsageUrl, sigunguCode, bjdongCode, bun, ji, date[i]);
 
                 log.info(gasUrlBuilder);
                 jsonObject = getGasUsage(gasUrlBuilder, jsonObject);
 
                 if (jsonObject.get(("helect")).equals(0)) {
-                    String electUrlBuilder = electUsageUrl +
-                            "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + gasUsageKey + /*Service Key*/
-                            "&" + URLEncoder.encode("sigunguCd", "UTF-8") + "=" + URLEncoder.encode(sigunguCode, "UTF-8") + /*시군구코드*/
-                            "&" + URLEncoder.encode("bjdongCd", "UTF-8") + "=" + URLEncoder.encode(bjdongCode, "UTF-8") + /*법정동코드*/
-                            "&" + URLEncoder.encode("bun", "UTF-8") + "=" + URLEncoder.encode(bun, "UTF-8") + /*번*/
-                            "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
-                            "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*사용년월*/
-
+                    String electUrlBuilder = getOneUsageUrl(electUsageUrl, sigunguCode, bjdongCode, bun, ji, date[i]);
                     jsonObject = getElectUsage(electUrlBuilder, jsonObject);
                 }
 
@@ -173,6 +159,26 @@ public class AptEnergyService {
     }
 
     // private init methods
+
+    private String[] initDates(String date) {
+        ArrayList<String> dates = new ArrayList<>();
+
+        int year = Integer.parseInt(date.substring(0, 4));
+        int month = Integer.parseInt(date.substring(4)) - 1;
+
+        for (int i = year - 2; i <= year; i++) {
+            for (int j = 1; j <= 12; j++) {
+                StringBuilder d = new StringBuilder();
+                d.append(i);
+                if (j < 10) d.append(0);
+                d.append(j);
+                dates.add(d.toString());
+                if (i == year && j == month) break;
+            }
+        }
+
+        return dates.toArray(String[]::new);
+    }
 
     private void initSigunguCodeMap() {
         sigunguCodeMap.put("남구", "27200");
@@ -223,6 +229,16 @@ public class AptEnergyService {
     }
 
     // private methods
+
+    private String getOneUsageUrl(String url, String sigunguCode, String bjdongCode, String bun, String ji, String date) throws Exception {
+        return url +
+                "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + gasUsageKey + /*Service Key*/
+                "&" + URLEncoder.encode("sigunguCd", "UTF-8") + "=" + URLEncoder.encode(sigunguCode, "UTF-8") + /*시군구코드*/
+                "&" + URLEncoder.encode("bjdongCd", "UTF-8") + "=" + URLEncoder.encode(bjdongCode, "UTF-8") + /*법정동코드*/
+                "&" + URLEncoder.encode("bun", "UTF-8") + "=" + URLEncoder.encode(bun, "UTF-8") + /*번*/
+                "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
+                "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date, "UTF-8"); /*사용년월*/
+    }
 
     private JSONObject getGasUsage(String reqBuilder, JSONObject jsonObject) throws Exception {
         String tmp = getUsage(reqBuilder);
