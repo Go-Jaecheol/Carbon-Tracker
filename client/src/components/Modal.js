@@ -4,6 +4,7 @@ import styled from 'styled-components';
 
 import EnergyChart from './EnergyChart';
 import EnergyTable from './EnergyTable';
+import CustomButton from './common/CustomButton';
 import { getHousingEnergyUsage } from '../api/index';
 import processEnergyData from '../utils/processEnergyData';
 
@@ -21,7 +22,7 @@ const ModalBackground = styled.div`
 `;
 
 const ModalWindow = styled.div`
-  width: 80%;
+  width: 1150px;
   height: 80%;
   margin-top: 65px;
   display: flex;
@@ -60,19 +61,6 @@ const DetailButton = styled.div`
 
 const RightWrapper = styled.div``;
 
-const CloseButton = styled.button`
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 100%;
-  background: none;
-  font-size: 1.3em;
-  cursor: pointer;
-  &:hover {
-    background: #d3d3d375;
-  }
-`;
-
 const KR_DateFormat_URL =
   'https://cdn.jsdelivr.net/npm/d3-time-format@3/locale/ko-KR.json';
 
@@ -105,7 +93,14 @@ export default function Modal({ housing, close }) {
     <ModalBackground>
       <ModalWindow>
         {isShowTable ? (
-          <EnergyTable />
+          energyData && (
+            <EnergyTable 
+              kaptName={kaptName} 
+              energyData={energyData} 
+              goBack={() => setShowTable(false)}
+              close={close}
+            />
+          )
         ) : (
           <>
             <LeftWrapper>
@@ -126,7 +121,7 @@ export default function Modal({ housing, close }) {
               )}
             </LeftWrapper>
             <RightWrapper>
-              <CloseButton onClick={close}>✕</CloseButton>
+              <CustomButton icon={'✕'} action={close} />
               {/* 현 시각 탄소 배출량 */}
               {/* 올해 예상 탄소 포인트 */}
             </RightWrapper>
