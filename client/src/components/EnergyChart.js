@@ -55,6 +55,7 @@ export default function EnergyChart({ energyData, invalidData }) {
     // 유효하지 않은 에너지 제외
     for (const key of invalidData.keys()) {
       const targetIdx = energyNames.indexOf(key);
+      if (targetIdx === -1) break;
       excludedEnergys.push(legends[targetIdx].label);
       energyNames.splice(targetIdx, 1);
       legends.splice(targetIdx, 1);
