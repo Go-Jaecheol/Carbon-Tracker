@@ -52,11 +52,8 @@ public class AptListService {
                 "&" + URLEncoder.encode("sidoCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCode()), "UTF-8") + /*시도코드*/
                 "&" + URLEncoder.encode("pageNo", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getPageNum()), "UTF-8") + /*페이지번호*/
                 "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCount()), "UTF-8"); /*목록 건수*/
-        String attributeList = "";
 
-//        return "";
-
-         return callApi(reqBuilder, "aptLists", "date", attributeList);
+         return callApi(reqBuilder);
     }
 
     public String aptListUpdate() throws Exception {
@@ -77,15 +74,13 @@ public class AptListService {
             String[] toDB1 = getAptCodeAndName(reqBuilder);
             // 호출 결과가 없는 경우(단지 코드가 없음)
             if (toDB1[0].equals("X")) break;
-            // test용 조건문
-            // if (idx > 5) break;
 
             // 단지 코드를 이용해 도로명 주소와 법정동 주소를 반환하는 API
             String reqBuilder2 = aptBasicInfoUrl +
                     "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptBasicInfoKey + /*Key*/
                     "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(toDB1[0], "UTF-8"); /*단지코드*/
 
-            // getDoroJuso의 반환 값은 도로명 주소와 법정동 주소
+            // getDoroJuso의 반환 값은 도로명 주소, 법정동 주소, 법정동 코드, 세대 수
             String[] toDB2 = getDoroJuso(reqBuilder2);
 
             // JSON 반환 객체 생성
@@ -95,6 +90,7 @@ public class AptListService {
             jsonObject.put("bjdJuso", toDB2[0]);
             jsonObject.put("doroJuso", toDB2[1]);
             jsonObject.put("bjdCode", toDB2[2]);
+            jsonObject.put("kaptdaCnt", toDB2[3]);
 
             // Kafka로 JSON 객체 produce
             log.info(String.format("Produce message : %s", jsonObject));
@@ -110,7 +106,7 @@ public class AptListService {
         return resultArray.toJSONString();
     }
 
-    public List<AptListResponse> aptListAll() throws Exception {
+    public List<AptListResponse> aptListAll() {
         log.info("aptListAll()");
         return aptListRepository.findAll().getContent();
     }
@@ -162,10 +158,11 @@ public class AptListService {
         String kaptAddr = getTagValue("kaptAddr", eElement);
         String doroJuso = getTagValue("doroJuso", eElement);
         String bjdCode = getTagValue("bjdCode", eElement);
+        String kaptdaCnt = getTagValue("kaptdaCnt", eElement);
 
-        log.info("단지의 법정동주소 : {}, 도로명주소 : {}, 법정동코드: {}", kaptAddr, doroJuso, bjdCode);
+        log.info("단지의 법정동주소 : {}, 도로명주소 : {}, 법정동코드: {}, 세대 수: {}", kaptAddr, doroJuso, bjdCode, kaptdaCnt);
 
-        return new String[] {kaptAddr, doroJuso, bjdCode};
+        return new String[] {kaptAddr, doroJuso, bjdCode, kaptdaCnt};
     }
 
     private String[] getAptCodeAndName(String reqBuilder) throws Exception {
@@ -181,7 +178,6 @@ public class AptListService {
         String[] result = new String[2];
         result[0] = getTagValue("kaptCode", eElement);
         result[1] = getTagValue("kaptName", eElement);
-        // result[2] = getTagValue("bjdCode", eElement);
 
         log.info("단지의 단지 코드 : {}, 단지 명 : {}", result[0], result[1]);
 
@@ -205,16 +201,15 @@ public class AptListService {
         return result;
     }
 
-    private String callApi(String reqBuilder, String apiName, String date, String attributeList) throws Exception {
+    private String callApi(String reqBuilder) throws Exception {
         HttpURLConnection conn = initConnection(reqBuilder);
         BufferedReader br = initBufferedReader(conn);
 
         StringBuilder sb = new StringBuilder();
         String line;
 
-        while ((line = br.readLine()) != null) {
+        while ((line = br.readLine()) != null)
             sb.append(line);
-        }
 
         br.close();
         conn.disconnect();
