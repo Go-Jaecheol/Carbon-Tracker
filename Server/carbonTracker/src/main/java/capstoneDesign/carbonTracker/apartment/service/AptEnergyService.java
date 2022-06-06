@@ -12,17 +12,8 @@ import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.util.*;
 
@@ -50,6 +41,8 @@ public class AptEnergyService {
     private final KafkaTemplate<String, JSONObject> kafkaTemplate;
     private final AptEnergyRepository aptEnergyRepository;
     private final AptListRepository aptListRepository;
+
+    private final CommonService commonService;
 
     public String aptEnergyAll(AptEnergyRequest aptEnergyRequest) throws Exception {
         String kaptCode = String.valueOf(aptEnergyRequest.getCode());
@@ -120,6 +113,7 @@ public class AptEnergyService {
                 log.info(gasUrlBuilder);
                 jsonObject = getGasUsage(gasUrlBuilder, jsonObject);
 
+                // 전기 사용량이 조회되지 않은 경우, 국토교통부_건물에너지정보 서비스 API 사용
                 if (jsonObject.get(("helect")).equals(0)) {
                     String electUrlBuilder = getOneUsageUrl(electUsageUrl, sigunguCode, bjdongCode, bun, ji, date[i]);
                     jsonObject = getElectUsage(electUrlBuilder, jsonObject);
@@ -134,11 +128,8 @@ public class AptEnergyService {
 
                 // Kafka로 JSON 객체 produce
                 log.info(String.format("Produce message : %s", jsonObject));
-//                kafkaTemplate.send(topic, jsonObject);
+                kafkaTemplate.send(topic, jsonObject);
             }
-
-            // TODO ES로부터 단지코드를 이용해 도로명주소와 법정동코드를 조회해야 함
-
             resultArray.add(jsonObject);
             i++;
         }
@@ -312,18 +303,18 @@ public class AptEnergyService {
     }
 
     private String getUsage(String reqBuilder) throws Exception {
-        Element eElement = initElement(initDocument(reqBuilder));
+        Element eElement = commonService.initElement(commonService.initDocument(reqBuilder));
 
         // 사용량 태그 값 추출
-        return getTagValue("useQty", eElement);
+        return commonService.getTagValue("useQty", eElement);
     }
 
     private JSONObject getUsage(String reqBuilder, JSONObject jsonObject) throws Exception {
-        Element eElement = initElement(initDocument(reqBuilder));
+        Element eElement = commonService.initElement(commonService.initDocument(reqBuilder));
 
         // 전기, 수도 사용량 태그 값 추출
-        String helect = getTagValue("helect", eElement);
-        String hwaterCool = getTagValue("hwaterCool", eElement);
+        String helect = commonService.getTagValue("helect", eElement);
+        String hwaterCool = commonService.getTagValue("hwaterCool", eElement);
 
         // 각각 사용량 배열 형태가 아닌 key: value 형태로 바로 저장
         jsonObject.put("helect", Integer.parseInt(helect == null ? "0" : helect));
@@ -334,7 +325,7 @@ public class AptEnergyService {
         return jsonObject;
     }
 
-    // private init & common methods
+    // private detail service methods
 
     private String[] initDates(String date) {
         ArrayList<String> dates = new ArrayList<>();
@@ -365,34 +356,6 @@ public class AptEnergyService {
         sigunguCodeMap.put("서구", "27170");
         sigunguCodeMap.put("수성구", "27260");
         sigunguCodeMap.put("중구", "27110");
-    }
-
-    private Document initDocument(String reqBuilder) throws Exception {
-        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        Document doc = dBuilder.parse(reqBuilder);
-        doc.getDocumentElement().normalize();
-        return doc;
-    }
-
-    private Element initElement(Document doc) {
-        NodeList nList = doc.getElementsByTagName("body");
-        Node nNode = nList.item(0);
-        return (Element) nNode;
-    }
-
-    private String getTagValue(String tag, Element eElement) {
-        //결과를 저장할 result
-        String result = "";
-
-        // 태그 값을 읽을 수 없는 경우는 해당 결과가 없다는 의미
-        if (eElement.getElementsByTagName(tag).item(0) == null) return null;
-
-        NodeList nlList = eElement.getElementsByTagName(tag).item(0).getChildNodes();
-
-        result = nlList.item(0).getTextContent();
-
-        return result;
     }
 
     private String getOneUsageUrl(String url, String sigunguCode, String bjdongCode, String bun, String ji, String date) throws Exception {

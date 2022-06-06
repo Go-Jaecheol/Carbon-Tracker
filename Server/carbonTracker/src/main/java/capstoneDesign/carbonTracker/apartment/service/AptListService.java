@@ -10,16 +10,8 @@ import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.util.*;
 
@@ -40,10 +32,10 @@ public class AptListService {
     @Value("${aptBasicInfoKey}")
     private String aptBasicInfoKey;
 
-    // 주소 결과를 얻지 못한 경우 check
-    private int noneCount = 0;
     private final KafkaTemplate<String, JSONObject> kafkaTemplate;
     private final AptListRepository aptListRepository;
+
+    private final CommonService commonService;
 
     public String aptLists(AptListRequest aptListRequest) throws Exception {
         log.info("aptLists(), 시도코드: {}", aptListRequest.getCode());
@@ -53,7 +45,7 @@ public class AptListService {
                 "&" + URLEncoder.encode("pageNo", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getPageNum()), "UTF-8") + /*페이지번호*/
                 "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptListRequest.getCount()), "UTF-8"); /*목록 건수*/
 
-         return callApi(reqBuilder);
+         return commonService.callApi(reqBuilder);
     }
 
     public String aptListUpdate() throws Exception {
@@ -101,7 +93,6 @@ public class AptListService {
             idx++;
         }
         log.info(String.valueOf(resultArray));
-        log.info("좌표를 얻지 못한 주소: {}", noneCount);
 
         return resultArray.toJSONString();
     }
@@ -111,54 +102,15 @@ public class AptListService {
         return aptListRepository.findAll().getContent();
     }
 
-    // private init methods
-
-    private Document initDocument(String reqBuilder) throws Exception {
-        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        Document doc = dBuilder.parse(reqBuilder);
-        doc.getDocumentElement().normalize();
-        return doc;
-    }
-
-    private Element initElement(Document doc) {
-        NodeList nList = doc.getElementsByTagName("body");
-        Node nNode = nList.item(0);
-        return (Element) nNode;
-    }
-
-    private HttpURLConnection initConnection(String reqBuilder) throws Exception {
-        URL url = new URL(reqBuilder);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
-        conn.setRequestMethod("GET");
-        conn.setRequestProperty("Content-type", "application/json");
-        log.info("Response code: {}", conn.getResponseCode());
-
-        return conn;
-    }
-
-    private BufferedReader initBufferedReader(HttpURLConnection conn) throws Exception {
-        BufferedReader br;
-
-        if(conn.getResponseCode() >= 200 && conn.getResponseCode() <= 300) {
-            br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        } else {
-            br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-        }
-
-        return br;
-    }
-
     // private detail service methods
 
     private String[] getDoroJuso(String reqBuilder) throws Exception {
-        Element eElement = initElement(initDocument(reqBuilder));
+        Element eElement = commonService.initElement(commonService.initDocument(reqBuilder));
 
-        String kaptAddr = getTagValue("kaptAddr", eElement);
-        String doroJuso = getTagValue("doroJuso", eElement);
-        String bjdCode = getTagValue("bjdCode", eElement);
-        String kaptdaCnt = getTagValue("kaptdaCnt", eElement);
+        String kaptAddr = commonService.getTagValue("kaptAddr", eElement);
+        String doroJuso = commonService.getTagValue("doroJuso", eElement);
+        String bjdCode = commonService.getTagValue("bjdCode", eElement);
+        String kaptdaCnt = commonService.getTagValue("kaptdaCnt", eElement);
 
         log.info("단지의 법정동주소 : {}, 도로명주소 : {}, 법정동코드: {}, 세대 수: {}", kaptAddr, doroJuso, bjdCode, kaptdaCnt);
 
@@ -166,54 +118,21 @@ public class AptListService {
     }
 
     private String[] getAptCodeAndName(String reqBuilder) throws Exception {
-        Element eElement = initElement(initDocument(reqBuilder));
+        Element eElement = commonService.initElement(commonService.initDocument(reqBuilder));
 
-        int thisCount = Integer.parseInt(Objects.requireNonNull(getTagValue("pageNo", eElement)));
-        int totalCount = Integer.parseInt(Objects.requireNonNull(getTagValue("totalCount", eElement)));
+        int thisCount = Integer.parseInt(Objects.requireNonNull(commonService.getTagValue("pageNo", eElement)));
+        int totalCount = Integer.parseInt(Objects.requireNonNull(commonService.getTagValue("totalCount", eElement)));
 
         // API 호출 결과가 없는 경우
         if (thisCount > totalCount) return new String[] {"X"};
 
         // API 호출 결과가 존재, 필요한 값을 추출
         String[] result = new String[2];
-        result[0] = getTagValue("kaptCode", eElement);
-        result[1] = getTagValue("kaptName", eElement);
+        result[0] = commonService.getTagValue("kaptCode", eElement);
+        result[1] = commonService.getTagValue("kaptName", eElement);
 
         log.info("단지의 단지 코드 : {}, 단지 명 : {}", result[0], result[1]);
 
         return result;
-    }
-
-    private String getTagValue(String tag, Element eElement) {
-        //결과를 저장할 result
-        String result = "";
-
-        // 태그 값을 읽을 수 없는 경우는 해당 결과가 없다는 의미
-        if (eElement.getElementsByTagName(tag).item(0) == null) {
-            noneCount++;
-            return null;
-        }
-
-        NodeList nlList = eElement.getElementsByTagName(tag).item(0).getChildNodes();
-
-        result = nlList.item(0).getTextContent();
-
-        return result;
-    }
-
-    private String callApi(String reqBuilder) throws Exception {
-        HttpURLConnection conn = initConnection(reqBuilder);
-        BufferedReader br = initBufferedReader(conn);
-
-        StringBuilder sb = new StringBuilder();
-        String line;
-
-        while ((line = br.readLine()) != null)
-            sb.append(line);
-
-        br.close();
-        conn.disconnect();
-
-        return sb.toString();
     }
 }
