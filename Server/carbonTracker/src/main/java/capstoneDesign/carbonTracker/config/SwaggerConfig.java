@@ -1,4 +1,4 @@
-package capstoneDesign.carbonTracker.apartment.appconfig;
+package capstoneDesign.carbonTracker.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
