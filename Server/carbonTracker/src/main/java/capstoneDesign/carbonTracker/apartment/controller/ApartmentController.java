@@ -40,13 +40,7 @@ public class ApartmentController {
         return apartmentService.aptListUpdate();
     }
 
-    @ApiOperation(value="대구시 공동주택 에너지 사용 정보 요청", notes="특정 단지 에너지 사용 정보 반환")
-    @PostMapping("/aptEnergy")
-    public String aptEnergyApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws Exception {
-        return aptEnergyService.aptEnergy(aptEnergyRequest);
-    }
-
-    @ApiOperation(value="대구시 특정 단지 기간별 공동주택 에너지 사용 정보 요청", notes="특정 단지 기간별 에너지 사용 정보 반환 (기간은 아직 입력받지 않음, 현재 202001 ~ 202112까지 반환)")
+    @ApiOperation(value="대구시 특정 단지 기간별 공동주택 에너지 사용 정보 요청", notes="특정 단지 기간별 에너지 사용 정보 반환")
     @PostMapping("/aptEnergyAll")
     public String aptEnergyAllApi(@RequestBody AptEnergyRequest aptEnergyRequest) throws Exception {
         return aptEnergyService.aptEnergyAll(aptEnergyRequest);
