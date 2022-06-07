@@ -1,4 +1,5 @@
 import { get, post } from "../utils/http.js";
+import { getCurrentDate } from "../utils/getCurrentDate.js";
 
 const baseURL = process.env.REACT_APP_API_BASE_URL;
 
@@ -7,7 +8,10 @@ export const getHousingInformation = async () => await get(baseURL + "/aptListAl
 
 // POST
 export const getHousingEnergyUsage = async (housingCode) => {
-    const body = { code: housingCode };
+    const body = { 
+        code: housingCode,
+        date: getCurrentDate()
+    };
     const headers = { 'Content-Type': 'application/json' };
     
     const { status, data } = await post(

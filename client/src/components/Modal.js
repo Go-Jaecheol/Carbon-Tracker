@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import * as d3 from 'd3';
 import styled from 'styled-components';
 
+import Spinner from './common/Spinner';
 import EnergyChart from './EnergyChart';
 import EnergyTable from './EnergyTable';
+import CarbonPoint from './CarbonPoint';
 import CustomButton from './common/CustomButton';
 import { getHousingEnergyUsage } from '../api/index';
 import processEnergyData from '../utils/processEnergyData';
@@ -31,6 +33,11 @@ const ModalWindow = styled.div`
   box-shadow: 2px 4px 16px rgb(0 0 0 / 16%);
   border-radius: 15px;
   padding: 25px 20px;
+  ${({ loading }) => `${
+    loading 
+      ? `justify-content: center;` 
+      : `justify-content: space-between;`
+  }`}
 `;
 
 const LeftWrapper = styled.div`
@@ -59,7 +66,11 @@ const DetailButton = styled.div`
   }
 `;
 
-const RightWrapper = styled.div``;
+const RightWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+`;
 
 const KR_DateFormat_URL =
   'https://cdn.jsdelivr.net/npm/d3-time-format@3/locale/ko-KR.json';
@@ -68,7 +79,9 @@ export default function Modal({ housing, close }) {
   const { kaptCode, kaptName, doroJuso } = housing;
   const [energyData, setEnerygyData] = useState(null);
   const [invalidData, setInvalidData] = useState(null);
+  const [carbonPoint, setCarbonPoint] = useState(null);
   const [isShowTable, setShowTable] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const dateParse = d3.timeParse('%Y%m');
@@ -81,17 +94,22 @@ export default function Modal({ housing, close }) {
     // 에너지 데이터 요청
     const requestEnergyData = async () => {
       const response = await getHousingEnergyUsage(kaptCode);
-      const [energyData, invalidData] = processEnergyData(response, dateParse);
+      const [energyData, invalidData] = processEnergyData(
+        response.slice(response.length - 26, -1), 
+        dateParse
+      );
       setEnerygyData(energyData);
       setInvalidData(invalidData);
+      setCarbonPoint(response[response.length - 1]['예상 탄소 포인트']);
+      setLoading(false);
     };
 
-    formatDateLocale().then(() => requestEnergyData());
+    formatDateLocale().then(() => requestEnergyData())
   }, [kaptCode]);
 
   return (
     <ModalBackground>
-      <ModalWindow>
+      <ModalWindow loading={loading}>
         {isShowTable ? (
           energyData && (
             <EnergyTable 
@@ -102,7 +120,8 @@ export default function Modal({ housing, close }) {
             />
           )
         ) : (
-          <>
+          loading ? <Spinner />
+          : <>
             <LeftWrapper>
               <div>
                 <HousingName>{kaptName}</HousingName>
@@ -123,7 +142,7 @@ export default function Modal({ housing, close }) {
             <RightWrapper>
               <CustomButton icon={'✕'} action={close} />
               {/* 현 시각 탄소 배출량 */}
-              {/* 올해 예상 탄소 포인트 */}
+              <CarbonPoint carbonPoint={carbonPoint} />
             </RightWrapper>
           </>
         )}
