@@ -1,5 +1,7 @@
 # Carbon Tracker
 
+<a href="https://www.youtube.com/watch?v=vmxlkb18iG0">📺 Youtube</a>
+
 ## 목적
 
 기후위기의 주된 원인인 지구온난화를 막기 위한, 탄소 절감은 이제 인류 생존을 위한 필수 요소가 되었다.
@@ -42,18 +44,18 @@
 - [X] 결측치 데이터 대체 알고리즘 구현
 - [X] 검색 알고리즘 구현 및 지도 연동
 - [X] 에너지 사용량 테이블 시각화 
-- [ ] 예상 탄소 포인트 계산 Service 구현
-- [ ] 기후 데이터를 통한 하루 예상 탄소 배출량 예측 모델 생성
-- [ ] 예상 탄소 포인트/탄소 배출량 컴포넌트 구현
+- [X] 예상 탄소 포인트 계산 Service 구현
+- [X] 기후 데이터를 통한 하루 예상 탄소 배출량 예측 모델 생성
+- [X] 예상 탄소 포인트/탄소 배출량 컴포넌트 구현
 - [ ] 테스팅 및 개선
 
 <img width="1440" alt="image" src="https://user-images.githubusercontent.com/33220404/170810550-3c8ec9cd-0157-432b-a2a8-25131fa77244.png">
 
 <img width="1440" alt="image" src="https://user-images.githubusercontent.com/33220404/170810582-07095669-3604-4247-b64f-069f7090f23a.png">
 
-<img width="1440" alt="image" src="https://user-images.githubusercontent.com/33220404/170810593-c790f406-10d3-47ab-8cd4-06d2ab663a3f.png">
+<img width="1440" alt="image" src="https://user-images.githubusercontent.com/33220404/172394528-92a41f92-ace6-451c-8034-53a60863b38e.png">
 
-<img width="1440" alt="image" src="https://user-images.githubusercontent.com/33220404/170810909-dd27069d-f35c-41c1-b4aa-6531541b7902.png">
+<img width="1440" alt="image" src="https://user-images.githubusercontent.com/33220404/172394642-fa1fe514-c6a4-40e0-9c19-4a7f2be986fb.png">
 
 ## Contributor
 
