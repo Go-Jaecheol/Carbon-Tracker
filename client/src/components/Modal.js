@@ -32,7 +32,7 @@ const ModalWindow = styled.div`
   background: white;
   box-shadow: 2px 4px 16px rgb(0 0 0 / 16%);
   border-radius: 15px;
-  padding: 25px 30px;
+  padding: 25px 47px;
   ${({ loading }) => `${
     loading === 'true' 
       ? `justify-content: center;` 
@@ -78,14 +78,22 @@ const PredictBoxWrapper = styled.div`
   flex-direction: column;
   width: 220px; 
   height: 87%;
-  justify-content: space-around;
-  align-items: flex-end;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 50px;
+  padding-bottom: 20px;
 `
 
 const LoadingWrapper = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+`
+
+const SubDescription = styled.div`
+  width: 100%;
+  color: gray;
+  font-size: 0.8em;
 `
 
 const KR_DateFormat_URL =
@@ -166,6 +174,9 @@ export default function Modal({ housing, close }) {
               <PredictBoxWrapper>
                 <TodayCarbon kaptdaCnt={kaptdaCnt} avgWater={avgWater} />
                 <CarbonPoint carbonPoint={carbonPoint} />
+                <SubDescription>
+                  ❗️ 발생 포인트는 예측치이며, 실제 사용량에 따라 정산 결과와 다를 수 있습니다.
+                </SubDescription>
               </PredictBoxWrapper>
             </RightWrapper>
           </>
