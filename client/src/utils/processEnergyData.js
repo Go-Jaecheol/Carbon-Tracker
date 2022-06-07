@@ -2,14 +2,6 @@ const SIZE = 24;
 const MID = Math.floor(SIZE / 2);
 
 export default function getProcessedEnergyData(data, dateParse) {
-  const test = [];
-
-  for (const obj of data) {
-    test.push({ ...obj });
-  }
-
-  console.log(test);
-
   const processEnergyData = () => {
     const idx = queue.shift();
 

@@ -9,9 +9,9 @@ export const getHousingInformation = async () => await get(baseURL + "/aptListAl
 
 // POST
 export const getHousingEnergyUsage = async (housingCode) => {
-    const cache = JSON.parse(sessionStorage.getItem(housingCode));
+    const cache = sessionStorage.getItem(housingCode);
     if (cache){
-        return cache;
+        return JSON.parse(cache);
     }
     
     const body = { 
