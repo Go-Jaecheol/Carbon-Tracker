@@ -81,17 +81,17 @@ public class AptEnergyService {
             // 단지코드와 발생년월로 조회
             Optional<AptEnergyResponse> aptEnergyResponse = aptEnergyRepository.findByKaptCodeAndDate(kaptCode, nDate);
             // 값이 이미 존재하면 바로 jsonObject에 추가
-//            if(aptEnergyResponse.isPresent()) {
-//                AptEnergyResponse res = aptEnergyResponse.get();
-//                jsonObject.put("kaptCode", res.getKaptCode());
-//                jsonObject.put("date", res.getDate());
-//                jsonObject.put("helect", res.getHelect());
-//                jsonObject.put("hgas", res.getHgas());
-//                jsonObject.put("hwaterCool", res.getHwaterCool());
-//                jsonObject.put("carbonEnergy", res.getCarbonEnergy());
-//
-//                log.info(String.valueOf(jsonObject));
-//            } else {
+            if(aptEnergyResponse.isPresent()) {
+                AptEnergyResponse res = aptEnergyResponse.get();
+                jsonObject.put("kaptCode", res.getKaptCode());
+                jsonObject.put("date", res.getDate());
+                jsonObject.put("helect", res.getHelect());
+                jsonObject.put("hgas", res.getHgas());
+                jsonObject.put("hwaterCool", res.getHwaterCool());
+                jsonObject.put("carbonEnergy", res.getCarbonEnergy());
+
+                log.info(String.valueOf(jsonObject));
+            } else {
                 // 없으면 공공데이터 API 호출해서 jsonObject에 추가
                 log.info("저장된 정보가 없습니다.");
                 // 특정 단지 코드에 대해 202001 ~ 202112까지의 에너지 사용량을 구하는 API
@@ -154,8 +154,8 @@ public class AptEnergyService {
                     if (!hasNullInfo && pastWeatherInfo.isEmpty()) {
                         pastWeatherInfo = getPastWeatherInfo(nDate);
                         if (pastWeatherInfo != null)
-                            gasUsage = getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo);
-                    } else if (!hasNullInfo) gasUsage = getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo);
+                            gasUsage = getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo) / 10;
+                    } else if (!hasNullInfo) gasUsage = getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo) / 10;
                     jsonObject.put("hgas", gasUsage);
                 }
 
@@ -170,8 +170,8 @@ public class AptEnergyService {
 
                 // Kafka로 JSON 객체 produce
                 log.info(String.format("Produce message : %s", jsonObject));
-//                kafkaTemplate.send(topic, jsonObject);
-//            }
+                kafkaTemplate.send(topic, jsonObject);
+            }
             resultArray.add(jsonObject);
             i++;
         }
@@ -520,7 +520,6 @@ public class AptEnergyService {
     }
 
     private double computeReduction(long nowUsage, long pastUsage) {
-        log.info("nowUsage: {}, pastUsage: {}", nowUsage, pastUsage);
         return (double) (pastUsage - nowUsage) / (double) pastUsage * 100;
     }
 
