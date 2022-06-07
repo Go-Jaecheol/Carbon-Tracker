@@ -1,4 +1,4 @@
-const SIZE = 24;
+const SIZE = 25;
 const MID = Math.floor(SIZE / 2);
 
 export default function getProcessedEnergyData(data, dateParse) {
