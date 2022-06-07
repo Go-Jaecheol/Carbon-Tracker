@@ -28,7 +28,6 @@ const ModalWindow = styled.div`
   height: 80%;
   margin-top: 65px;
   display: flex;
-  justify-content: space-between;
   background: white;
   box-shadow: 2px 4px 16px rgb(0 0 0 / 16%);
   border-radius: 15px;
@@ -109,7 +108,7 @@ export default function Modal({ housing, close }) {
 
   return (
     <ModalBackground>
-      <ModalWindow loading={loading}>
+      <ModalWindow loading={loading.toString()}>
         {isShowTable ? (
           energyData && (
             <EnergyTable 
