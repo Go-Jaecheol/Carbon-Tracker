@@ -154,8 +154,8 @@ public class AptEnergyService {
                     if (!hasNullInfo && pastWeatherInfo.isEmpty()) {
                         pastWeatherInfo = getPastWeatherInfo(nDate);
                         if (pastWeatherInfo != null)
-                            gasUsage = getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo) / 10;
-                    } else if (!hasNullInfo) gasUsage = getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo) / 10;
+                            gasUsage = (int) ((double) getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo) * 0.09 / 10);
+                    } else if (!hasNullInfo) gasUsage = (int) ((double) getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo) * 0.09 / 10);
                     jsonObject.put("hgas", gasUsage);
                 }
 
@@ -170,7 +170,7 @@ public class AptEnergyService {
 
                 // Kafka로 JSON 객체 produce
                 log.info(String.format("Produce message : %s", jsonObject));
-                kafkaTemplate.send(topic, jsonObject);
+//                kafkaTemplate.send(topic, jsonObject);
             }
             resultArray.add(jsonObject);
             i++;
