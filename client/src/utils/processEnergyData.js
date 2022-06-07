@@ -1,4 +1,4 @@
-const SIZE = 25;
+const SIZE = 24;
 const MID = Math.floor(SIZE / 2);
 
 export default function getProcessedEnergyData(data, dateParse) {
@@ -43,6 +43,8 @@ export default function getProcessedEnergyData(data, dateParse) {
       carbonEnergy: getCarbonData(data[idx]),
     };
 
+    totalWaterEnergry += processedData[idx].hwaterCool;
+
     if (0 < idx && idx <= MID) {
       queue.push(idx - 1);
     }
@@ -58,13 +60,15 @@ export default function getProcessedEnergyData(data, dateParse) {
   });
   const invalidEnergys = new Set();
 
+  let totalWaterEnergry = 0;
+
   while (queue.length) {
     processEnergyData(data, dateParse, queue);
   }
+ 
+  const avgWater = Math.floor(totalWaterEnergry / SIZE);
 
-  console.log(processedData);
-
-  return [processedData, invalidEnergys];
+  return [processedData, invalidEnergys, avgWater];
 }
 
 // 대체할 이전, 이후 데이터 찾기
@@ -117,5 +121,5 @@ function selectReplaceData(data, key, idx, prev, after) {
 
 // 탄소 배출량 계산
 function getCarbonData({ helect, hgas, hwaterCool }) {
-  return Math.floor(helect * 0.4663 + hgas * 2.22 + hwaterCool * 0.332);
+  return Math.floor(helect + hgas + hwaterCool);
 }

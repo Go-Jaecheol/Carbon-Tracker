@@ -5,8 +5,8 @@ import createEnergyChart from '../utils/createEnergyChart';
 import updateEnergyChart from '../utils/updateEnergyChart';
 
 const ChartWrapper = styled.div`
-  width: 800px;
-  height: 500px;
+  width: 850px;
+  height: 100%;
   padding: 15px 10px;
   background: white;
   box-shadow: 2px 4px 16px rgb(0 0 0 / 7%);
