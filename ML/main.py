@@ -1,5 +1,4 @@
 import json
-
 from fastapi import FastAPI
 from pydantic import BaseModel
 import pandas as pd
@@ -8,9 +7,16 @@ import requests
 from datetime import datetime, timedelta
 from os import environ
 from dotenv.main import load_dotenv
-
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 load_dotenv()
 
 
@@ -62,7 +68,6 @@ def forecast():
             wsd = float(l.get("fcstValue"))
     tmp = (tmn + tmx) / 2
     result = [tmp, tmx, tmn, reh, wsd]
-    print(response.content)
     return {'avg_temp': tmp, 'max_temp': tmx, 'min_temp': tmn, 'avg_humid': reh, 'avg_wind': wsd}
 
 
@@ -83,7 +88,6 @@ async def gas_predict(item_dict):
 @app.post("/predict/now")
 async def predict_now(item: Item):
     temp = forecast()
-    print(temp)
     item_dict = item.dict()
     item_dict.update(temp)
     gas_prediction = await gas_predict(item_dict)
