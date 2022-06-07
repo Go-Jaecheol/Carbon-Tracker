@@ -1,13 +1,10 @@
 import React, { useState } from "react";
+import { useRecoilValue } from "recoil";
 import styled from "styled-components";
 
+import { housingState, mapState } from "../atoms";
 import findMatches from "../utils/findMatches";
-
-const housingSample = [
-    "대구광역시 중구 동인동1가 33-1 동인시티타운",
-    "대구광역시 중구 태평로3가 1 대구역센트럴자이아파트",
-    "대구광역시 중구 남산동 437-1 인터불고코아시스"
-];
+import { getKakaoLatLng } from "../utils/kakao";
 
 const SearchBarContainer = styled.div`
     position: relative;
@@ -49,22 +46,34 @@ const Suggestion = styled.div`
     &:hover{
         background-color: whitesmoke;
     }
+    &:focus {
+        background-color: whitesmoke;
+    }
 `
 
 let pending = null;
+const { kakao } = window;
 
 export default function SearchBar() {
     const [target, setTarget] = useState("");
     const [suggestion, setSuggestion] = useState([]);
-    const [focused, setFocused] = useState(false);
+    const housingInformation = useRecoilValue(housingState);
+    const map = useRecoilValue(mapState);
 
     const handleChange = (event) => {
         setTarget(event.target.value);
         if(pending !== null) clearTimeout(pending);
         pending = setTimeout(() => {
-            setSuggestion([...findMatches(event.target.value, housingSample)]);
+            setSuggestion([...findMatches(event.target.value, housingInformation)]);
             pending = null;
         }, 500);
+    }
+
+    const handleClick = (info) => {
+        setTarget(info.bjdJuso);
+        setSuggestion([]);
+        map.setLevel(2);
+        map.setCenter(getKakaoLatLng(info.Ma, info.La));
     }
 
     return (
@@ -72,14 +81,19 @@ export default function SearchBar() {
             <span>🔎</span>
             <SearchInput 
                 value={target} 
-                style={(suggestion.length > 0 && focused ? {"borderRadius": "20px 20px 0 0", "borderBottomWidth": "0px"} : {})} 
+                style={(suggestion.length > 0 ? {"borderRadius": "20px 20px 0 0", "borderBottomWidth": "0px"} : {})} 
                 onChange={handleChange} 
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
             />
-            {suggestion.length > 0 && focused &&
+            {suggestion.length > 0 &&
             <SuggestionContainer>
-                {suggestion.map(name => <Suggestion key={name}>{name}</Suggestion>)}
+                {suggestion.map(info => 
+                    <Suggestion 
+                        key={info.bjdJuso}
+                        onClick={() => handleClick(info)}
+                    >
+                    {info.bjdJuso}
+                    </Suggestion>)
+                }
             </SuggestionContainer>
             }
         </SearchBarContainer>

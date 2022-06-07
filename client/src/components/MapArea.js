@@ -1,40 +1,66 @@
-import React from "react";
-import { Map, MapMarker } from "react-kakao-maps-sdk"
+import React, { useState } from "react";
+import { useRecoilValue, useSetRecoilState } from "recoil";
+import { Map, MapMarker, MarkerClusterer, useMap } from "react-kakao-maps-sdk";
 
-const daegu = { lat: 35.855, lng: 128.56 };
+import { housingState, mapState } from "../atoms";
+import Modal from "./Modal";
 
-const housingSample = [
-  { 
-    name: "대구광역시 중구 동인동1가 33-1 동인시티타운",
-    lat: 35.8723582,
-    lng: 128.602149
-  },
-  { 
-    name: "대구광역시 중구 태평로3가 1 대구역센트럴자이아파트",
-    lat: 35.8756692,
-    lng: 128.587600
-  },
-  { 
-    name: "대구광역시 중구 남산동 437-1 인터불고코아시스",
-    lat: 35.8647560,
-    lng: 128.588999
-  },
-];
+const defaultPosition = {
+  center: { lat: 35.855, lng: 128.56 },
+  level: 7
+}
 
 export default function MapArea() {
+  const setMap = useSetRecoilState(mapState);
+  const housingInformation = useRecoilValue(housingState);
+
+  const EventMarkerContainer = ({ housing }) => {
+    const map = useMap();
+    const { Ma, La, kaptName } = housing;
+    const [visible, setVisible] = useState(false);
+    const [isModalOpen, setModalOpen] = useState(false);
+
     return (
-      <Map 
-        center={{...daegu}}
-        style={{width: "100%", height: "100vh"}}
-        level={7}
-      >
-      {housingSample.map(({name, lat, lng}) => (
+      <>
+        {isModalOpen && (
+          <Modal 
+            housing={housing} 
+            close={() => setModalOpen(false)} 
+          />
+        )}
         <MapMarker
-          key={name}
-          position={{lat, lng}}
-          onClick={() => console.log(name)}
-        />
-      ))}
-      </Map>
+          position={{ lat: Ma, lng: La }}
+          onClick={(marker) => {
+            map.panTo(marker.getPosition());
+            setModalOpen(true);
+          }}
+          onMouseOver={() => setVisible(true)}
+          onMouseOut={() => setVisible(false)}
+        >
+          {visible && (<div>{kaptName}</div>)}
+        </MapMarker>
+      </>
     );
+  };
+ 
+  return (
+    <Map
+      center={defaultPosition.center}
+      style={{ width: "100%", height: "100vh" }}
+      level={defaultPosition.level}
+      onCreate={setMap}
+    >
+      <MarkerClusterer
+        averageCenter={true}
+        minLevel={5}
+      >
+        {housingInformation.map(housing => (
+          <EventMarkerContainer 
+            key={housing.kaptCode} 
+            housing={housing}
+          />
+        ))}
+      </MarkerClusterer>
+    </Map>
+  );
 }
