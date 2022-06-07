@@ -1,6 +1,6 @@
 # Carbon Tracker
 
-데모 영상: <a href="https://www.youtube.com/watch?v=vmxlkb18iG0">📺 Youtube</a>
+<a href="https://www.youtube.com/watch?v=vmxlkb18iG0">📺 Youtube</a>
 
 ## 목적
 
