@@ -6,6 +6,7 @@ import Spinner from './common/Spinner';
 import EnergyChart from './EnergyChart';
 import EnergyTable from './EnergyTable';
 import CarbonPoint from './CarbonPoint';
+import TodayCarbon from './TodayCarbon';
 import CustomButton from './common/CustomButton';
 import { getHousingEnergyUsage } from '../api/index';
 import processEnergyData from '../utils/processEnergyData';
@@ -31,9 +32,9 @@ const ModalWindow = styled.div`
   background: white;
   box-shadow: 2px 4px 16px rgb(0 0 0 / 16%);
   border-radius: 15px;
-  padding: 25px 20px;
+  padding: 25px 30px;
   ${({ loading }) => `${
-    loading 
+    loading === 'true' 
       ? `justify-content: center;` 
       : `justify-content: space-between;`
   }`}
@@ -69,16 +70,33 @@ const RightWrapper = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  justify-content: space-between;
 `;
+
+const PredictBoxWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 220px; 
+  height: 87%;
+  justify-content: space-around;
+  align-items: flex-end;
+`
+
+const LoadingWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`
 
 const KR_DateFormat_URL =
   'https://cdn.jsdelivr.net/npm/d3-time-format@3/locale/ko-KR.json';
 
 export default function Modal({ housing, close }) {
-  const { kaptCode, kaptName, doroJuso } = housing;
+  const { kaptCode, kaptName, doroJuso, kaptdaCnt } = housing;
   const [energyData, setEnerygyData] = useState(null);
   const [invalidData, setInvalidData] = useState(null);
   const [carbonPoint, setCarbonPoint] = useState(null);
+  const [avgWater, setAvgWater] = useState(null);
   const [isShowTable, setShowTable] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -93,18 +111,19 @@ export default function Modal({ housing, close }) {
     // 에너지 데이터 요청
     const requestEnergyData = async () => {
       const response = await getHousingEnergyUsage(kaptCode);
-      const [energyData, invalidData] = processEnergyData(
-        response.slice(response.length - 26, -1), 
+      const [energyData, invalidData, avgWater] = processEnergyData(
+        response.slice(response.length - 26, -2), 
         dateParse
       );
       setEnerygyData(energyData);
       setInvalidData(invalidData);
+      setAvgWater(avgWater);
       setCarbonPoint(response[response.length - 1]['예상 탄소 포인트']);
       setLoading(false);
     };
 
-    formatDateLocale().then(() => requestEnergyData())
-  }, [kaptCode]);
+    formatDateLocale().then(() => requestEnergyData());
+  }, [kaptCode, kaptdaCnt]);
 
   return (
     <ModalBackground>
@@ -119,7 +138,11 @@ export default function Modal({ housing, close }) {
             />
           )
         ) : (
-          loading ? <Spinner />
+          loading 
+          ? <LoadingWrapper>
+              <Spinner />
+              <CustomButton icon={'✕'} action={close} />
+            </LoadingWrapper>
           : <>
             <LeftWrapper>
               <div>
@@ -140,8 +163,10 @@ export default function Modal({ housing, close }) {
             </LeftWrapper>
             <RightWrapper>
               <CustomButton icon={'✕'} action={close} />
-              {/* 현 시각 탄소 배출량 */}
-              <CarbonPoint carbonPoint={carbonPoint} />
+              <PredictBoxWrapper>
+                <TodayCarbon kaptdaCnt={kaptdaCnt} avgWater={avgWater} />
+                <CarbonPoint carbonPoint={carbonPoint} />
+              </PredictBoxWrapper>
             </RightWrapper>
           </>
         )}
