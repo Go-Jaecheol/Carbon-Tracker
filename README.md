@@ -31,7 +31,7 @@
 
 ## 시스템 설계
 
-<img width="958" alt="image" src="https://user-images.githubusercontent.com/33220404/170811403-b00c0b39-f49a-4210-b07d-90c5e5aee6e4.png">
+![image](https://user-images.githubusercontent.com/33220404/172395870-c0994407-f38b-4f69-9f96-7a6fe41fac61.png)
 
 ## 진행 상황
 
