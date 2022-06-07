@@ -73,6 +73,8 @@ public class CommonService {
         //결과를 저장할 result
         String result = "";
 
+        if (eElement == null) return null;
+
         // 태그 값을 읽을 수 없는 경우는 해당 결과가 없다는 의미
         if (eElement.getElementsByTagName(tag).item(0) == null) return null;
 

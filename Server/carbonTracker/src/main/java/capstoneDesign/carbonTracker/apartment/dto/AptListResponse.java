@@ -25,4 +25,7 @@ public class AptListResponse {
 
     @Field(type = FieldType.Keyword)
     private String bjdCode;
+
+    @Field(type = FieldType.Integer)
+    private int kaptdaCnt;
 }

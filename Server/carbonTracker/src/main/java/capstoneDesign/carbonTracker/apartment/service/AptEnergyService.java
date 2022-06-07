@@ -10,8 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.w3c.dom.Element;
 
 import java.net.URLEncoder;
@@ -36,6 +38,21 @@ public class AptEnergyService {
     @Value("${gasUsageKey}")
     private String gasUsageKey;
 
+    @Value("${weatherRetrieveUrl1}")
+    private String weatherRetrieveUrl1;
+
+    @Value("${weatherRetrieveUrl2}")
+    private String weatherRetrieveUrl2;
+
+    @Value("${weatherRetrieveKey}")
+    private String weatherRetrieveKey;
+
+    @Value("${MLElectUrl}")
+    private String MLElectUrl;
+
+    @Value("${MLGasUrl}")
+    private String MLGasUrl;
+
     private final Map<String, String> sigunguCodeMap = new HashMap<>();
 
     private final KafkaTemplate<String, JSONObject> kafkaTemplate;
@@ -58,10 +75,11 @@ public class AptEnergyService {
 
         int i = 0;
         while(i < date.length) {
+            String nDate = date[i];
             // JSON 배열 반환 형태 생성
             JSONObject jsonObject = new JSONObject();
             // 단지코드와 발생년월로 조회
-            Optional<AptEnergyResponse> aptEnergyResponse = aptEnergyRepository.findByKaptCodeAndDate(kaptCode, date[i]);
+            Optional<AptEnergyResponse> aptEnergyResponse = aptEnergyRepository.findByKaptCodeAndDate(kaptCode, nDate);
             // 값이 이미 존재하면 바로 jsonObject에 추가
             if(aptEnergyResponse.isPresent()) {
                 AptEnergyResponse res = aptEnergyResponse.get();
@@ -80,10 +98,10 @@ public class AptEnergyService {
                 String urlBuilder = aptEnergyUrl +
                         "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + aptEnergyKey + /*Service Key*/
                         "&" + URLEncoder.encode("kaptCode", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(aptEnergyRequest.getCode()), "UTF-8") + /*단지코드*/
-                        "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(date[i], "UTF-8"); /*발생년월*/
+                        "&" + URLEncoder.encode("reqDate", "UTF-8") + "=" + URLEncoder.encode(nDate, "UTF-8"); /*발생년월*/
 
                 jsonObject.put("kaptCode", kaptCode);
-                jsonObject.put("date", date[i]);
+                jsonObject.put("date", nDate);
                 // parsing 결과 jsonObject에 추가하기 위해 파라미터로 보내고, 반환 받음
                 jsonObject = getUsage(urlBuilder, jsonObject);
 
@@ -108,21 +126,45 @@ public class AptEnergyService {
 
                 log.info("시군구코드 : {}, 법정동코드: {}, 번: {}, 지: {}", sigunguCode, bjdongCode, bun, ji);
                 // 국토교통부_건물에너지정보_서비스 사용
-                String gasUrlBuilder = getOneUsageUrl(gasUsageUrl, sigunguCode, bjdongCode, bun, ji, date[i]);
+                String gasUrlBuilder = getOneUsageUrl(gasUsageUrl, sigunguCode, bjdongCode, bun, ji, nDate);
 
                 log.info(gasUrlBuilder);
                 jsonObject = getGasUsage(gasUrlBuilder, jsonObject);
 
                 // 전기 사용량이 조회되지 않은 경우, 국토교통부_건물에너지정보 서비스 API 사용
                 if (jsonObject.get(("helect")).equals(0)) {
-                    String electUrlBuilder = getOneUsageUrl(electUsageUrl, sigunguCode, bjdongCode, bun, ji, date[i]);
+                    String electUrlBuilder = getOneUsageUrl(electUsageUrl, sigunguCode, bjdongCode, bun, ji, nDate);
                     jsonObject = getElectUsage(electUrlBuilder, jsonObject);
                 }
 
+                boolean hasNullInfo = false;
+                // 전기, 가스 사용량이 0인 경우는 ML 모델을 통해 예상 사용량으로 대체
+                int electUsage = Integer.parseInt(Objects.toString(jsonObject.get("helect")));
+                Map<String, Double> pastWeatherInfo = new LinkedHashMap<>();
+                if (electUsage == 0) {
+                    pastWeatherInfo = getPastWeatherInfo(nDate);
+                    if (pastWeatherInfo == null) hasNullInfo = true;
+                    else electUsage = getExpectedUsageForElec(res.getKaptdaCnt(), pastWeatherInfo);
+
+                    jsonObject.put("helect", electUsage);
+                }
+
+                int gasUsage = Integer.parseInt(Objects.toString(jsonObject.get("hgas")));
+                if (gasUsage == 0) {
+                    if (!hasNullInfo && pastWeatherInfo.isEmpty()) {
+                        pastWeatherInfo = getPastWeatherInfo(nDate);
+                        if (pastWeatherInfo != null)
+                            gasUsage = getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo);
+                    } else if (!hasNullInfo) gasUsage = getExpectedUsageForGas(res.getKaptdaCnt(), pastWeatherInfo);
+                    jsonObject.put("hgas", gasUsage);
+                }
+
+                double waterUsage = Double.parseDouble(Objects.toString(jsonObject.get("hwaterCool")));
+
                 // 탄소 사용량 계산 및 추가
-                int helect = (int) (Double.parseDouble(Objects.toString(jsonObject.get("helect"))) * 0.4663);
-                int hgas = (int) (Double.parseDouble(Objects.toString(jsonObject.get("hgas"))) * 2.22);
-                int hwaterCool = (int) (Double.parseDouble(Objects.toString(jsonObject.get("hwaterCool"))) * 0.3332);
+                int helect = (int) (electUsage * 0.4663);
+                int hgas = (int) (gasUsage * 2.22);
+                int hwaterCool = (int) (waterUsage * 0.3332);
 
                 jsonObject.put("carbonEnergy", helect + hgas + hwaterCool);
 
@@ -325,6 +367,87 @@ public class AptEnergyService {
         return jsonObject;
     }
 
+    private int getExpectedUsageForElec(int kaptdaCnt, Map<String, Double> pastWeatherInfo) {
+        // body 생성
+        JSONObject params = getMLReqBodyForElec(kaptdaCnt, pastWeatherInfo);
+
+        // header 생성
+        HttpHeaders httpHeaders = initHeaders();
+
+        // header와 body 합치기
+        HttpEntity<JSONObject> entity = new HttpEntity<>(params, httpHeaders);
+
+        // 요청
+        RestTemplate rt = new RestTemplate();
+        ResponseEntity<String> responseEntity = rt.exchange(MLElectUrl, HttpMethod.POST, entity, String.class);
+
+        return Integer.parseInt(Objects.requireNonNull(responseEntity.getBody()).replaceAll("\\D", ""));
+    }
+
+    private int getExpectedUsageForGas(int kaptdaCnt, Map<String, Double> pastWeatherInfo) {
+        // body 생성
+        JSONObject params = getMLReqBodyForGas(kaptdaCnt, pastWeatherInfo);
+
+        // header 생성
+        HttpHeaders httpHeaders = initHeaders();
+
+        // header와 body 합치기
+        HttpEntity<JSONObject> entity = new HttpEntity<>(params, httpHeaders);
+
+        // 요청
+        RestTemplate rt = new RestTemplate();
+        ResponseEntity<String> responseEntity = rt.exchange(MLGasUrl, HttpMethod.POST, entity, String.class);
+
+        log.info(String.valueOf(responseEntity));
+        return Integer.parseInt(Objects.requireNonNull(responseEntity.getBody()).replaceAll("\\D", ""));
+    }
+
+    private JSONObject getMLReqBodyForElec(int kaptdaCnt, Map<String, Double> pastWeatherInfo) {
+        JSONObject params = new JSONObject();
+        params.put("household", kaptdaCnt);
+        params.put("avg_temp", pastWeatherInfo.get("평균 기온"));
+        params.put("max_temp", pastWeatherInfo.get("최고 기온"));
+        params.put("min_temp", pastWeatherInfo.get("최저 기온"));
+        params.put("avg_humid", pastWeatherInfo.get("평균 습도"));
+        return params;
+    }
+
+    private JSONObject getMLReqBodyForGas(int kaptdaCnt, Map<String, Double> pastWeatherInfo) {
+        JSONObject params = getMLReqBodyForElec(kaptdaCnt, pastWeatherInfo);
+        params.put("avg_wind", pastWeatherInfo.get("평균 풍속"));
+        return params;
+    }
+
+    private HttpHeaders initHeaders() {
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+        return httpHeaders;
+    }
+
+    private Map<String, Double> getPastWeatherInfo(String date) throws Exception {
+        String year = date.substring(0, 4);
+        String month = date.substring(4);
+        Map<String, Double> infoMap = new LinkedHashMap<>();
+
+        String reqBuilder = getWeatherInfoUrl(weatherRetrieveUrl1, year, month);
+        Element eElement = commonService.initElement(commonService.initDocument(reqBuilder));
+
+        if (eElement == null) return null;
+
+        infoMap.put("평균 기온", Double.parseDouble(commonService.getTagValue("taavg", eElement)));
+        infoMap.put("최고 기온", Double.parseDouble(commonService.getTagValue("tamax", eElement)));
+        infoMap.put("최저 기온", Double.parseDouble(commonService.getTagValue("tamin", eElement)));
+        infoMap.put("평균 습도", Double.parseDouble(commonService.getTagValue("avghm", eElement)));
+
+        reqBuilder = getWeatherInfoUrl(weatherRetrieveUrl2, year, month);
+        eElement = commonService.initElement(commonService.initDocument(reqBuilder));
+
+        infoMap.put("평균 풍속", Double.parseDouble(commonService.getTagValue("ws", eElement)));
+
+        return infoMap;
+    }
+
     // private detail service methods
 
     private String[] initDates(String date) {
@@ -366,6 +489,16 @@ public class AptEnergyService {
                 "&" + URLEncoder.encode("bun", "UTF-8") + "=" + URLEncoder.encode(bun, "UTF-8") + /*번*/
                 "&" + URLEncoder.encode("ji", "UTF-8") + "=" + URLEncoder.encode(ji, "UTF-8") + /*지*/
                 "&" + URLEncoder.encode("useYm", "UTF-8") + "=" + URLEncoder.encode(date, "UTF-8"); /*사용년월*/
+    }
+
+    private String getWeatherInfoUrl(String url, String year, String month) throws Exception {
+        return url +
+                "?" + URLEncoder.encode("serviceKey", "UTF-8") + "=" + weatherRetrieveKey + /*Service Key*/
+                "&" + URLEncoder.encode("pageNo", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(1), "UTF-8") + /*시군구코드*/
+                "&" + URLEncoder.encode("numOfRows", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(1), "UTF-8") + /*법정동코드*/
+                "&" + URLEncoder.encode("year", "UTF-8") + "=" + URLEncoder.encode(year, "UTF-8") + /*번*/
+                "&" + URLEncoder.encode("month", "UTF-8") + "=" + URLEncoder.encode(month, "UTF-8") + /*지*/
+                "&" + URLEncoder.encode("dataType", "UTF-8") + "=" + URLEncoder.encode("XML", "UTF-8"); /*사용년월*/
     }
 
     private AptEnergyResponse getPastEnergyResponse(String kaptCode, String date) {
