@@ -81,17 +81,17 @@ public class AptEnergyService {
             // 단지코드와 발생년월로 조회
             Optional<AptEnergyResponse> aptEnergyResponse = aptEnergyRepository.findByKaptCodeAndDate(kaptCode, nDate);
             // 값이 이미 존재하면 바로 jsonObject에 추가
-            if(aptEnergyResponse.isPresent()) {
-                AptEnergyResponse res = aptEnergyResponse.get();
-                jsonObject.put("kaptCode", res.getKaptCode());
-                jsonObject.put("date", res.getDate());
-                jsonObject.put("helect", res.getHelect());
-                jsonObject.put("hgas", res.getHgas());
-                jsonObject.put("hwaterCool", res.getHwaterCool());
-                jsonObject.put("carbonEnergy", res.getCarbonEnergy());
-
-                log.info(String.valueOf(jsonObject));
-            } else {
+//            if(aptEnergyResponse.isPresent()) {
+//                AptEnergyResponse res = aptEnergyResponse.get();
+//                jsonObject.put("kaptCode", res.getKaptCode());
+//                jsonObject.put("date", res.getDate());
+//                jsonObject.put("helect", res.getHelect());
+//                jsonObject.put("hgas", res.getHgas());
+//                jsonObject.put("hwaterCool", res.getHwaterCool());
+//                jsonObject.put("carbonEnergy", res.getCarbonEnergy());
+//
+//                log.info(String.valueOf(jsonObject));
+//            } else {
                 // 없으면 공공데이터 API 호출해서 jsonObject에 추가
                 log.info("저장된 정보가 없습니다.");
                 // 특정 단지 코드에 대해 202001 ~ 202112까지의 에너지 사용량을 구하는 API
@@ -170,8 +170,8 @@ public class AptEnergyService {
 
                 // Kafka로 JSON 객체 produce
                 log.info(String.format("Produce message : %s", jsonObject));
-                kafkaTemplate.send(topic, jsonObject);
-            }
+//                kafkaTemplate.send(topic, jsonObject);
+//            }
             resultArray.add(jsonObject);
             i++;
         }
@@ -187,7 +187,7 @@ public class AptEnergyService {
     // private methods
 
     // 단지코드와 현재년월을 받아 예상 탄소 포인트 반환
-    private int getCarbonPoint(String kaptCode, String nowDate) {
+    private JSONObject getCarbonPoint(String kaptCode, String nowDate) {
         // 사용량 조회가 필요한 날짜 배열 생성
         String[] dates = getDates(nowDate);
 
@@ -208,7 +208,14 @@ public class AptEnergyService {
         point += computePoint(reductionRate[1], new int[] {750, 1500, 2000});
         point += computePoint(reductionRate[2], new int[] {3000, 6000, 8000});
 
-        return point;
+        JSONObject jsonObject = new JSONObject();
+
+        jsonObject.put("전기 에너지 감축률", (int) reductionRate[0]);
+        jsonObject.put("수도 에너지 감축률", (int) reductionRate[1]);
+        jsonObject.put("가스 에너지 감축률", (int) reductionRate[2]);
+        jsonObject.put("예상 탄소 포인트", point);
+
+        return jsonObject;
     }
 
     private String[] getDates(String nowDate) {
@@ -513,11 +520,13 @@ public class AptEnergyService {
     }
 
     private double computeReduction(long nowUsage, long pastUsage) {
+        log.info("nowUsage: {}, pastUsage: {}", nowUsage, pastUsage);
         return (double) (pastUsage - nowUsage) / (double) pastUsage * 100;
     }
 
     private int computePoint(double reductionRate, int[] insentive) {
-        if (5.0 <= reductionRate && reductionRate < 10.0) return insentive[0];
+        if (reductionRate < 5.0) return 0;
+        else if (5.0 <= reductionRate && reductionRate < 10.0) return insentive[0];
         else if (10.0 <= reductionRate && reductionRate < 15.0) return insentive[1];
         else return insentive[2];
     }
