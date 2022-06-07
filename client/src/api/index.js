@@ -8,6 +8,11 @@ export const getHousingInformation = async () => await get(baseURL + "/aptListAl
 
 // POST
 export const getHousingEnergyUsage = async (housingCode) => {
+    const cache = JSON.parse(sessionStorage.getItem(housingCode));
+    if (cache){
+        return cache;
+    }
+    
     const body = { 
         code: housingCode,
         date: getCurrentDate()
@@ -25,5 +30,6 @@ export const getHousingEnergyUsage = async (housingCode) => {
         return null;
     }
 
+    sessionStorage.setItem(housingCode, JSON.stringify(data));
     return data;
 }
